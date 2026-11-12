@@ -1,0 +1,1723 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sylcon Villa Traffic</title>
+<meta name="description" content="Live and estimated drive times from home across Dhaka, with the Moghbazar flyover and the Elevated Expressway Tejgaon entrance timed on each route.">
+<meta name="theme-color" content="#05070F">
+<meta name="color-scheme" content="dark">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SV Traffic">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Manrope:wght@400;500;600;700&display=swap">
+<style>
+/* Spacing follows an 8-point grid: 8, 16, 24, 32, 40, 48 and up; 4 and 12 only for tight inner details.
+   Body text is 16px on a 24px line. Tap targets are 40 to 48px.
+   Layout: a night-drive HUD. One column, the selected route is the hero with a glowing journey rail;
+   three views (Routes, Points, Setup) behind a bottom bar. Single dark theme by choice:
+   LED-cyan signal light and sodium-amber street light over blue-black. */
+:root {
+  --bg: #05070F;
+  --bg-2: #0A0F1F;
+  --glass: rgba(140, 165, 255, 0.06);
+  --glass-2: rgba(140, 165, 255, 0.11);
+  --line: rgba(150, 175, 255, 0.15);
+  --line-2: rgba(150, 175, 255, 0.30);
+  --fg: #ECF1FF;
+  --muted: #98A5CB;
+  --dim: #6B79A3;
+  --cy: #56E0FF;
+  --am: #FFB24D;
+  --ink: #03131B;
+  --c-free: #3BE8A4;
+  --c-mod: #FFD15C;
+  --c-heavy: #FF9248;
+  --c-jam: #FF5580;
+  --f-display: 'Chakra Petch', 'Arial Narrow', system-ui, sans-serif;
+  --f-body: 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-mono: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; padding-top: env(safe-area-inset-top, 0px); }
+body {
+  margin: 0;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--f-body); font-size: 16px; line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
+.fx { position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(70vmax 60vmax at 115% -12%, rgba(86, 224, 255, 0.17), transparent 62%),
+    radial-gradient(60vmax 55vmax at -20% 108%, rgba(255, 178, 77, 0.13), transparent 62%);
+}
+.fx::after { content: ""; position: absolute; inset: 0;
+  background-image: linear-gradient(rgba(150, 175, 255, 0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(150, 175, 255, 0.07) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(ellipse at 50% 0%, #000 0%, transparent 72%);
+  mask-image: radial-gradient(ellipse at 50% 0%, #000 0%, transparent 72%);
+}
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--cy); outline-offset: 2px; border-radius: 8px; }
+a { color: var(--cy); }
+h1, h2, h3 { font-family: var(--f-display); margin: 0; text-wrap: balance; letter-spacing: 0.01em; }
+
+/* top bar */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: linear-gradient(180deg, rgba(5, 7, 15, 0.94), rgba(5, 7, 15, 0.72));
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--line);
+}
+.top-in { max-width: 600px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding-block: 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.brand svg { flex: 0 0 auto; }
+.brand-n { font-family: var(--f-display); font-weight: 700; font-size: 0.95rem; letter-spacing: 0.08em; text-transform: uppercase; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brand-s { font-family: var(--f-mono); font-size: 0.7rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bal { display: flex; align-items: center; gap: 8px; text-decoration: none; color: var(--fg); padding: 4px 8px 4px 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--glass); flex: 0 0 auto; }
+.bal b { display: block; font-family: var(--f-mono); font-size: 0.86rem; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.bal small { display: block; font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); line-height: 1.1; }
+.ring-bg { stroke: var(--line-2); }
+.ring-fg { stroke: var(--cy); transition: stroke-dashoffset 0.6s ease; }
+
+.app { position: relative; z-index: 1; max-width: 600px; margin: 0 auto;
+  padding-block: 16px 112px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.view { display: flex; flex-direction: column; gap: 16px; }
+.eyebrow { font-family: var(--f-mono); font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.fine { font-size: 0.8rem; color: var(--muted); margin: 0; }
+.h { font-size: 1.05rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* controls */
+.seg { display: inline-flex; flex-wrap: wrap; padding: 4px; gap: 4px; border: 1px solid var(--line); border-radius: 16px; background: rgba(5, 7, 15, 0.5); max-width: 100%; }
+.seg.wide { display: flex; }
+.seg.wide button { flex: 1 1 0; }
+.seg button { border: 0; background: transparent; color: var(--muted); padding: 8px 12px; min-height: 40px; border-radius: 12px; cursor: pointer; font-size: 0.86rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.seg button[aria-pressed="true"] { background: linear-gradient(180deg, rgba(86, 224, 255, 0.22), rgba(86, 224, 255, 0.08)); color: var(--fg); box-shadow: inset 0 0 0 1px rgba(86, 224, 255, 0.45), 0 0 16px -8px var(--cy); }
+.btn { border: 0; cursor: pointer; font-weight: 700; font-size: 0.88rem; padding: 8px 16px; min-height: 48px; border-radius: 12px; background: linear-gradient(180deg, #7DE9FF, #35C9EE); color: var(--ink); text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 8px 32px -8px var(--cy); }
+.btn.ghost { background: var(--glass-2); color: var(--fg); box-shadow: inset 0 0 0 1px var(--line-2); }
+.btn[disabled] { opacity: 0.5; cursor: default; }
+.link { background: none; border: 0; color: var(--cy); text-decoration: underline; cursor: pointer; padding: 8px 2px; font-size: 0.85rem; }
+select, input[type="number"], input[type="time"], input[type="text"], input[type="password"] { padding: 8px 12px; min-height: 48px; border: 1px solid var(--line-2); border-radius: 12px; background: rgba(5, 7, 15, 0.6); color: var(--fg); max-width: 100%; width: 100%; }
+input[type="range"] { width: 100%; accent-color: var(--cy); }
+.field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.field > label, .lbl { font-size: 0.72rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.chk { display: flex; gap: 8px; align-items: center; font-size: 0.9rem; }
+.inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.inline > input, .inline > select { width: auto; flex: 1 1 144px; }
+
+/* panels: plain glass for groups, glow reserved for the hero and the balance */
+.panel { border: 1px solid var(--line); border-radius: 24px; padding: 16px; background: linear-gradient(180deg, var(--glass-2), var(--glass)); display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.panel h2 { font-size: 1.15rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.pill { --lvl: var(--muted); display: inline-flex; align-items: center; gap: 8px; padding: 4px 12px; border-radius: 999px; font-family: var(--f-mono); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--lvl); border: 1px solid color-mix(in srgb, var(--lvl) 55%, transparent); background: color-mix(in srgb, var(--lvl) 12%, transparent); white-space: nowrap; }
+.pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--lvl); box-shadow: 0 0 8px var(--lvl); }
+
+/* hero */
+.hero { --lvl: var(--cy); position: relative; overflow: hidden; border-radius: 24px; padding: 24px 16px; display: flex; flex-direction: column; gap: 16px;
+  background: linear-gradient(155deg, color-mix(in srgb, var(--lvl) 13%, transparent), rgba(255, 255, 255, 0.02) 46%, rgba(255, 178, 77, 0.06));
+  border: 1px solid color-mix(in srgb, var(--lvl) 38%, var(--line));
+  box-shadow: 0 32px 88px -40px var(--lvl), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.hero-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.dest { font-size: 1.9rem; font-weight: 700; line-height: 1.05; text-transform: uppercase; letter-spacing: 0.03em; }
+.sub { font-size: 0.82rem; color: var(--muted); }
+.hero-main { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.big { font-family: var(--f-display); font-weight: 700; line-height: 0.82; color: var(--lvl); font-size: clamp(5rem, 27vw, 7.4rem); letter-spacing: -0.02em; text-shadow: 0 0 48px color-mix(in srgb, var(--lvl) 60%, transparent); display: flex; align-items: baseline; gap: 8px; font-variant-numeric: tabular-nums; }
+.big small { font-size: 1.2rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg); text-shadow: none; }
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; flex: 1 1 100%; min-width: 0; border-top: 1px solid var(--line); padding-top: 12px; }
+.facts b { font-family: var(--f-mono); font-size: 0.95rem; white-space: nowrap; font-weight: 700; font-variant-numeric: tabular-nums; }
+.facts small { display: block; font-size: 0.7rem; line-height: 1.3; color: var(--muted); }
+.advice { display: flex; gap: 12px; align-items: flex-start; padding: 12px 16px; border-radius: 16px; background: rgba(5, 7, 15, 0.55); border: 1px solid var(--line); }
+.advice .tag { font-family: var(--f-display); font-weight: 700; font-size: 1.12rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--lvl); line-height: 1.15; }
+.advice p { margin: 2px 0 0; font-size: 0.86rem; color: var(--muted); }
+
+/* journey rail */
+.journey { display: flex; flex-direction: column; }
+.j { --lvl: var(--dim); --spd: 1.2s; display: grid; grid-template-columns: 24px minmax(0, 1fr); column-gap: 16px; }
+.j-rail { display: flex; justify-content: center; }
+.j-line { width: 4px; border-radius: 2px; position: relative; overflow: hidden; background: color-mix(in srgb, var(--lvl) 22%, transparent); }
+.j-line::after { content: ""; position: absolute; inset: -16px 0 0 0; background: repeating-linear-gradient(180deg, var(--lvl) 0 8px, transparent 8px 16px); animation: flow var(--spd) linear infinite; }
+.j.key .j-line { width: 8px; border-radius: 4px; box-shadow: 0 0 16px -2px var(--lvl); }
+@keyframes flow { to { transform: translateY(16px); } }
+.j-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--cy); background: var(--bg); box-shadow: 0 0 16px var(--cy); margin-top: 4px; }
+.j.end .j-dot { border-color: var(--am); box-shadow: 0 0 16px var(--am); }
+.j-body { padding-block: 2px 12px; min-width: 0; }
+.j.stop .j-body { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; padding-bottom: 8px; }
+.j.stop b { font-weight: 700; }
+.j.stop span { font-family: var(--f-mono); font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+.j.road .j-body { display: flex; justify-content: space-between; gap: 8px; font-size: 0.84rem; color: var(--muted); padding-block: 8px; }
+.j.road .j-body span:last-child { font-family: var(--f-mono); color: var(--fg); white-space: nowrap; }
+.kcard { border: 1px solid color-mix(in srgb, var(--lvl) 45%, var(--line)); background: color-mix(in srgb, var(--lvl) 9%, rgba(5, 7, 15, 0.5)); border-radius: 16px; padding: 12px 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; margin-block: 4px; }
+.kcard .kn { font-family: var(--f-display); font-weight: 600; font-size: 1.02rem; letter-spacing: 0.05em; text-transform: uppercase; line-height: 1.15; }
+.kcard .kt { font-family: var(--f-display); font-weight: 700; font-size: 1.7rem; color: var(--lvl); line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; grid-row: span 2; text-align: right; }
+.kcard .kt small { font-size: 0.72rem; letter-spacing: 0.1em; color: var(--fg); margin-left: 4px; }
+.kcard .km { font-size: 0.78rem; color: var(--muted); }
+.kcard .km b { color: var(--lvl); font-weight: 700; }
+
+/* forecast bars */
+.fc-bars { display: flex; align-items: flex-end; gap: 4px; height: 64px; }
+.fc-bars i { flex: 1 1 0; min-width: 0; border-radius: 4px 4px 1px 1px; background: linear-gradient(180deg, var(--lvl), color-mix(in srgb, var(--lvl) 30%, transparent)); position: relative; }
+.fc-bars i.best { box-shadow: 0 0 0 1px var(--fg), 0 0 16px var(--lvl); }
+.fc-axis { display: flex; justify-content: space-between; gap: 8px; font-family: var(--f-mono); font-size: 0.66rem; color: var(--muted); margin-top: 8px; }
+.fc-axis b { color: var(--fg); font-weight: 700; }
+.chips .eyebrow { flex: 1 1 100%; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.chip { border: 1px solid var(--line-2); background: transparent; color: var(--muted); border-radius: 999px; padding: 8px 12px; min-height: 40px; font-size: 0.8rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.chip::before { content: ""; width: 8px; height: 8px; border-radius: 4px; border: 1.4px solid var(--dim); }
+.chip[aria-pressed="true"] { color: var(--fg); border-color: var(--cy); background: rgba(86, 224, 255, 0.1); }
+.chip[aria-pressed="true"]::before { background: var(--cy); border-color: var(--cy); box-shadow: 0 0 8px var(--cy); }
+.src { font-size: 0.8rem; color: var(--muted); display: flex; gap: 8px; align-items: flex-start; }
+.src .live { flex: 0 0 auto; margin-top: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
+.src.on .live { background: var(--c-free); box-shadow: 0 0 0 0 var(--c-free); animation: ping 1.8s ease-out infinite; }
+.src.err .live { background: var(--c-jam); }
+@keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(59, 232, 164, 0.7); } 100% { box-shadow: 0 0 0 8px rgba(59, 232, 164, 0); } }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.actions .btn { flex: 1 1 152px; }
+.banner { border: 1px dashed var(--am); color: var(--am); border-radius: 16px; padding: 8px 12px; font-size: 0.84rem; display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+
+/* route list */
+.list { border: 1px solid var(--line); border-radius: 24px; overflow: hidden; background: var(--glass); }
+.rt { --lvl: var(--dim); width: 100%; display: grid; grid-template-columns: 4px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 16px 12px 0; background: transparent; border: 0; border-top: 1px solid var(--line); text-align: left; cursor: pointer; }
+.rt:first-child { border-top: 0; }
+.rt::before { content: ""; align-self: stretch; border-radius: 0 4px 4px 0; background: var(--lvl); box-shadow: 0 0 12px var(--lvl); }
+.rt[aria-pressed="true"] { background: linear-gradient(90deg, rgba(86, 224, 255, 0.12), transparent 70%); }
+.rt-n { font-weight: 700; font-size: 0.98rem; }
+.rt-m { font-size: 0.74rem; color: var(--muted); }
+.rt-t { font-family: var(--f-display); font-weight: 700; font-size: 1.5rem; color: var(--lvl); line-height: 1; text-align: right; font-variant-numeric: tabular-nums; }
+.rt-t small { display: block; font-family: var(--f-mono); font-size: 0.6rem; font-weight: 500; letter-spacing: 0.1em; color: var(--muted); margin-top: 4px; }
+
+/* points view */
+.level { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.level .dot { width: 16px; height: 16px; border-radius: 50%; background: var(--lvl, var(--muted)); box-shadow: 0 0 16px var(--lvl, transparent); flex: 0 0 auto; }
+.level .name { font-family: var(--f-display); font-weight: 700; font-size: 2.3rem; line-height: 1; text-transform: uppercase; color: var(--lvl); text-shadow: 0 0 32px color-mix(in srgb, var(--lvl) 50%, transparent); }
+.idx { font-family: var(--f-mono); font-size: 0.85rem; color: var(--muted); margin-left: auto; }
+.clock { font-family: var(--f-mono); font-size: 0.78rem; color: var(--muted); }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.stat { border-top: 1px solid var(--line); padding-top: 8px; min-width: 0; }
+.stat .v { font-family: var(--f-mono); font-size: 1.2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat .k { font-size: 0.74rem; color: var(--muted); }
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+#corImpact { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tile { border: 1px solid var(--line); border-radius: 16px; padding: 8px 12px; background: rgba(5, 7, 15, 0.45); min-width: 0; }
+.tile .k { font-size: 0.66rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; }
+.tile .tv { font-family: var(--f-mono); font-size: 1.05rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tile .n { font-size: 0.72rem; color: var(--muted); }
+.trend { font-size: 0.92rem; }
+.cor { display: grid; gap: 12px; }
+.corrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; border-top: 1px solid var(--line); padding-top: 8px; }
+.corrow .nm { font-weight: 700; min-width: 0; }
+.corrow .meta { font-family: var(--f-mono); font-size: 0.76rem; color: var(--muted); text-align: right; }
+.corrow .meta.wide { grid-column: 1 / -1; text-align: left; }
+.corrow .meter { grid-column: 1 / -1; height: 8px; background: rgba(5, 7, 15, 0.6); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.corrow .meter b { display: block; height: 100%; background: var(--lvl); box-shadow: 0 0 12px var(--lvl); }
+.corrow .mini { grid-column: 1 / -1; display: flex; align-items: flex-end; gap: 1px; height: 32px; }
+.mini i { flex: 1 1 0; min-width: 0; background: var(--lvl); border-radius: 1px 1px 0 0; }
+.chartbox { position: relative; height: 152px; border-bottom: 1px solid var(--line); touch-action: pan-y; cursor: crosshair; }
+.grid { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--line); pointer-events: none; }
+.bars { position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 1px; }
+.bars i { flex: 1 1 0; min-width: 0; background: linear-gradient(180deg, var(--lvl), color-mix(in srgb, var(--lvl) 35%, transparent)); border-radius: 2px 2px 0 0; }
+.cursor { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--fg); box-shadow: 0 0 8px var(--fg); pointer-events: none; transform: translateX(-1px); }
+.axis { position: relative; height: 24px; font-family: var(--f-mono); font-size: 0.66rem; color: var(--muted); }
+.axis span { position: absolute; top: 4px; white-space: nowrap; }
+.readout { font-family: var(--f-mono); font-size: 0.82rem; min-height: 1.5em; display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center; }
+.legend { display: flex; gap: 8px 16px; flex-wrap: wrap; font-size: 0.74rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.legend span::before { content: ""; width: 8px; height: 8px; border-radius: 4px; background: var(--lvl); }
+.lv { display: inline-flex; align-items: center; gap: 8px; }
+.lv::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--lvl); box-shadow: 0 0 8px var(--lvl); }
+.tablewrap { overflow-x: auto; max-width: 100%; }
+.scroll { max-height: 320px; overflow: auto; border: 1px solid var(--line); border-radius: 12px; }
+table { border-collapse: collapse; width: 100%; font-size: 0.84rem; }
+th { text-align: left; font-weight: 700; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 8px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; background: var(--bg-2); position: sticky; top: 0; }
+td { padding: 8px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; font-variant-numeric: tabular-nums; }
+td.mono { font-family: var(--f-mono); }
+tr.best td { background: rgba(59, 232, 164, 0.12); font-weight: 700; }
+.verdict { --lvl: var(--c-free); border: 1px solid color-mix(in srgb, var(--lvl) 50%, transparent); background: color-mix(in srgb, var(--lvl) 10%, transparent); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.verdict .title { font-family: var(--f-display); font-weight: 700; font-size: 1.5rem; line-height: 1.1; text-transform: uppercase; color: var(--lvl); }
+.verdict p { margin: 0; font-size: 0.9rem; }
+.report { border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: rgba(5, 7, 15, 0.5); font-size: 0.9rem; }
+.report p { margin: 0 0 8px; }
+.mapbox { height: 320px; border-radius: 16px; overflow: hidden; border: 1px solid var(--line-2); background: var(--bg-2); }
+.trip { display: grid; grid-template-columns: minmax(0, 1fr) 152px auto; gap: 8px 16px; align-items: center; border-top: 1px solid var(--line); padding-top: 16px; }
+.trip > label:first-child { font-weight: 700; }
+#arrive .inline > input { flex: 0 1 160px; }
+details > summary { cursor: pointer; font-family: var(--f-display); font-weight: 600; font-size: 1.05rem; letter-spacing: 0.08em; text-transform: uppercase; list-style-position: inside; }
+details[open] > summary { margin-bottom: 12px; }
+details.panel { display: block; }
+details.panel > .stack { display: flex; flex-direction: column; gap: 16px; }
+
+/* setup view */
+.balance { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: center; }
+.balance .num { font-family: var(--f-display); font-weight: 700; font-size: 2.6rem; line-height: 1; color: var(--cy); text-shadow: 0 0 32px rgba(86, 224, 255, 0.5); font-variant-numeric: tabular-nums; }
+.glow { border-color: rgba(86, 224, 255, 0.35); box-shadow: 0 32px 80px -48px var(--cy); }
+.sched { display: flex; height: 32px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); position: relative; }
+.sched i { display: block; height: 100%; }
+.sched .off { background: rgba(5, 7, 15, 0.6); }
+.sched .slow { background: repeating-linear-gradient(90deg, rgba(86, 224, 255, 0.55) 0 2px, rgba(86, 224, 255, 0.08) 2px 8px); }
+.sched .fast { background: repeating-linear-gradient(90deg, var(--am) 0 2px, rgba(255, 178, 77, 0.25) 2px 4px); }
+.sched .nowmark { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--fg); box-shadow: 0 0 8px var(--fg); }
+.sched-ax { display: flex; justify-content: space-between; font-family: var(--f-mono); font-size: 0.64rem; color: var(--muted); }
+.place { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 8px; }
+.place:first-of-type { border-top: 0; padding-top: 0; }
+.place b { font-weight: 700; }
+.place small { color: var(--muted); font-size: 0.76rem; }
+
+/* bottom nav */
+.nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; background: rgba(5, 7, 15, 0.93); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border-top: 1px solid var(--line);
+  padding-top: 8px; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.nav-in { max-width: 600px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.nav a { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 8px; border-radius: 16px; text-decoration: none; color: var(--dim); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; position: relative; }
+.nav a svg { width: 24px; height: 24px; }
+.nav a[aria-current="page"] { color: var(--cy); background: rgba(86, 224, 255, 0.08); }
+.nav a[aria-current="page"]::before { content: ""; position: absolute; top: -8px; left: 30%; right: 30%; height: 2px; border-radius: 2px; background: var(--cy); box-shadow: 0 0 16px var(--cy); }
+
+@media (max-width: 380px) {
+  .dest { font-size: 1.6rem; }
+  .stat .v { font-size: 1rem; }
+  .level .name { font-size: 1.9rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .j-line::after, .src.on .live { animation: none; }
+  .ring-fg { transition: none; }
+}
+</style>
+
+</head>
+<body>
+<div class="fx" aria-hidden="true"></div>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand">
+      <svg width="32" height="32" viewBox="0 0 34 34" aria-hidden="true"><rect x="1" y="1" width="32" height="32" rx="10" fill="rgba(86,224,255,0.10)" stroke="rgba(86,224,255,0.5)"/><path d="M8 23 L13 23 M14 23 L19 23 M20 23 L26 23" stroke-width="2" stroke-linecap="round" fill="none" stroke="#FFD15C"/><path d="M7 22 C 11 8, 23 8, 27 22" fill="none" stroke="#56E0FF" stroke-width="2.6" stroke-linecap="round"/><circle cx="17" cy="11.6" r="2.2" fill="#FFB24D" stroke="#05070F" stroke-width="1"/></svg>
+      <div style="min-width:0">
+        <div class="brand-n">Sylcon Villa Traffic</div>
+        <div class="brand-s" id="clock">–</div>
+      </div>
+    </div>
+    <a class="bal" href="#setup" aria-label="Google API balance, open Setup">
+      <svg width="32" height="32" viewBox="0 0 36 36" aria-hidden="true"><circle class="ring-bg" cx="18" cy="18" r="14" fill="none" stroke-width="4"/><circle class="ring-fg" id="ringMini" cx="18" cy="18" r="14" fill="none" stroke-width="4" stroke-linecap="round" stroke-dasharray="87.96" stroke-dashoffset="0" transform="rotate(-90 18 18)"/></svg>
+      <span><b id="balLeft">–</b><small>API left</small></span>
+    </a>
+  </div>
+</header>
+
+<main class="app">
+
+  <!-- ===================== ROUTES ===================== -->
+  <section class="view" id="v-routes">
+    <div class="seg wide" id="dirSeg" role="group" aria-label="Direction">
+      <button type="button" data-d="out" aria-pressed="true">From home</button>
+      <button type="button" data-d="in" aria-pressed="false">To home</button>
+    </div>
+    <div class="banner" id="simBanner" hidden><span id="simText"></span><button type="button" class="link" id="simOff" style="padding:0">Back to live</button></div>
+    <article class="hero" id="hero" aria-live="polite"></article>
+    <article class="panel" id="arrive">
+      <h2>Arrive by</h2>
+      <div class="field">
+        <label for="arrBy" id="arrLbl">Be there by</label>
+        <div class="inline"><input id="arrBy" type="time"><button type="button" class="link" id="arrClear" hidden>Clear</button></div>
+      </div>
+      <div class="verdict" id="arrOut" hidden></div>
+    </article>
+    <h2 class="h">My routes</h2>
+    <div class="list" id="routeList"></div>
+    <p class="fine" id="routesNote"></p>
+  </section>
+
+  <!-- ===================== POINTS ===================== -->
+  <section class="view" id="v-points" hidden>
+    <div class="seg wide" id="spotSeg" role="group" aria-label="Point to watch">
+      <button type="button" data-s="fly" aria-pressed="true">Moghbazar flyover</button>
+      <button type="button" data-s="expr" aria-pressed="false">Expressway entrance</button>
+    </div>
+    <div class="row">
+      <span class="eyebrow">Day pattern</span>
+      <div class="seg" id="daySeg" role="group" aria-label="Day pattern">
+        <button type="button" data-day="week" aria-pressed="true">Sun–Thu</button>
+        <button type="button" data-day="fri" aria-pressed="false">Friday</button>
+        <button type="button" data-day="sat" aria-pressed="false">Saturday</button>
+      </div>
+    </div>
+
+    <article class="panel glow" id="now">
+      <div>
+        <div class="eyebrow" id="spotRoute">Moghbazar → Tejgaon</div>
+        <h2 id="nowH">Right now</h2>
+        <div class="clock" id="clock2"></div>
+      </div>
+      <div class="level" id="nowLevel"><span class="dot"></span><span class="name">–</span></div>
+      <div class="stats">
+        <div class="stat"><div class="v" id="nowSpeed">–</div><div class="k">average speed</div></div>
+        <div class="stat"><div class="v" id="nowCross">–</div><div class="k" id="nowCrossK">to cross the flyover stretch</div></div>
+        <div class="stat"><div class="v" id="nowExtra">–</div><div class="k">extra over clear roads</div></div>
+      </div>
+      <div class="tiles" id="tiles"></div>
+      <div class="trend" id="nowTrend"></div>
+    </article>
+
+    <article class="panel">
+      <h2>Live traffic map</h2>
+      <div class="mapbox" id="mapBox" hidden></div>
+      <div class="inline"><button type="button" class="btn ghost" id="mapBtn">Load the map</button></div>
+      <p class="fine" id="mapMsg">Google's live traffic colours around Moghbazar, Tejgaon and Hatirjheel. It loads only when you tap, and each load counts as one map load on your Google key. It needs Maps JavaScript API enabled on the key.</p>
+    </article>
+
+    <article class="panel">
+      <h2>Correct the reading</h2>
+      <p class="fine" id="calibText"></p>
+      <div class="field">
+        <span class="lbl">What you see on the road</span>
+        <div class="seg" id="reportSeg" role="group" aria-label="What the point looks like right now">
+          <button type="button" data-r="0.12" aria-pressed="false">Clear</button>
+          <button type="button" data-r="0.38" aria-pressed="false">Moving</button>
+          <button type="button" data-r="0.64" aria-pressed="false">Slow</button>
+          <button type="button" data-r="0.9" aria-pressed="false">Jammed</button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="lbl">Colour on the Google Maps traffic layer</span>
+        <div class="seg" id="gmSeg" role="group" aria-label="Road colour on the Google Maps traffic layer">
+          <button type="button" data-r="0.12" aria-pressed="false"><span class="lv" style="--lvl:var(--c-free)"></span>Green</button>
+          <button type="button" data-r="0.38" aria-pressed="false"><span class="lv" style="--lvl:var(--c-mod)"></span>Orange</button>
+          <button type="button" data-r="0.64" aria-pressed="false"><span class="lv" style="--lvl:var(--c-heavy)"></span>Red</button>
+          <button type="button" data-r="0.9" aria-pressed="false"><span class="lv" style="--lvl:var(--c-jam)"></span>Dark red</button>
+        </div>
+      </div>
+      <div class="inline">
+        <a class="btn ghost" id="gmLink" href="https://www.google.com/maps/search/?api=1&query=Moghbazar+Flyover+Dhaka" target="_blank" rel="noopener noreferrer">Open the point in Google Maps</a>
+        <button type="button" class="link" id="clearReport" hidden>Remove my correction</button>
+      </div>
+    </article>
+
+    <article class="panel" id="corridor">
+      <h2>Corridor flow</h2>
+      <div class="cor" id="corRows"></div>
+      <div class="eyebrow">Expressway entrance compared with the flyover</div>
+      <div class="tiles" id="corImpact"></div>
+      <div class="trend" id="corSummary"></div>
+    </article>
+
+    <article class="panel" id="timeline">
+      <h2>Every 5 minutes</h2>
+      <div class="seg" id="winSeg" role="group" aria-label="Chart range">
+        <button type="button" data-w="next3" aria-pressed="true">Next 3 hours</button>
+        <button type="button" data-w="rest" aria-pressed="false">Rest of day</button>
+        <button type="button" data-w="all" aria-pressed="false">24 hours</button>
+      </div>
+      <div class="readout" id="readout"></div>
+      <div class="chartbox" id="chart" tabindex="0" role="img" aria-label="Congestion for each 5-minute slot. Use left and right arrow keys to move.">
+        <div class="grid" style="top:25%"></div>
+        <div class="grid" style="top:50%"></div>
+        <div class="grid" style="top:75%"></div>
+        <div class="bars" id="bars"></div>
+        <div class="cursor" id="cursor"></div>
+      </div>
+      <div class="axis" id="axis"></div>
+      <div class="legend">
+        <span style="--lvl:var(--c-free)">Free flow</span>
+        <span style="--lvl:var(--c-mod)">Moderate</span>
+        <span style="--lvl:var(--c-heavy)">Heavy</span>
+        <span style="--lvl:var(--c-jam)">Jammed</span>
+      </div>
+      <details>
+        <summary>Slot by slot, next 3 hours</summary>
+        <div class="scroll">
+          <table id="slots"><thead><tr><th>Time</th><th>Traffic</th><th>Speed</th><th>To cross</th></tr></thead><tbody></tbody></table>
+        </div>
+      </details>
+    </article>
+
+    <article class="panel">
+      <h2>Replay the day</h2>
+      <div class="field">
+        <label for="preset">Time of day</label>
+        <select id="preset">
+          <option value="live">Live (now)</option>
+          <option value="570">Morning peak, 9:30 AM</option>
+          <option value="780">Midday, 1:00 PM</option>
+          <option value="1095">Evening peak, 6:15 PM</option>
+          <option value="1350">Night, 10:30 PM</option>
+          <option value="custom" hidden>Replay time</option>
+        </select>
+      </div>
+      <div class="inline">
+        <button type="button" class="btn" id="playBtn">Play day</button>
+        <div class="seg" id="speedSeg" role="group" aria-label="Replay speed">
+          <button type="button" data-v="1" aria-pressed="true">1x</button>
+          <button type="button" data-v="2" aria-pressed="false">2x</button>
+          <button type="button" data-v="5" aria-pressed="false">5x</button>
+        </div>
+        <button type="button" class="link" id="liveBtn">Back to live</button>
+      </div>
+    </article>
+
+    <details class="panel" id="planner">
+      <summary>Leaving from another area</summary>
+      <div class="stack">
+        <div class="field"><label for="origin">Starting from</label><select id="origin"></select></div>
+        <div class="field" id="customRow" hidden><label for="custom">Minutes to reach the point with clear roads</label><input id="custom" type="number" min="1" max="120" value="15" inputmode="numeric"></div>
+        <div class="field">
+          <span class="lbl">Leaving</span>
+          <div class="inline">
+            <div class="seg" id="departSeg" role="group" aria-label="Departure time">
+              <button type="button" data-d="now" aria-pressed="true">Now</button>
+              <button type="button" data-d="pick" aria-pressed="false">At a set time</button>
+            </div>
+            <input id="pick" type="time" hidden aria-label="Departure time">
+          </div>
+        </div>
+        <div class="field">
+          <span class="lbl">What matters more</span>
+          <div class="seg" id="prioSeg" role="group" aria-label="Priority">
+            <button type="button" data-p="jam" aria-pressed="true">Least time in the jam</button>
+            <button type="button" data-p="arrive" aria-pressed="false">Arrive earliest</button>
+          </div>
+        </div>
+        <div class="verdict" id="verdict"></div>
+        <div class="tablewrap">
+          <table id="opts"><thead><tr><th>Leave at</th><th>At the point</th><th>On the road</th><th>Past it</th></tr></thead><tbody></tbody></table>
+        </div>
+        <p class="fine">Waiting is only advised for up to 1 hour, and only when it saves at least 5 minutes.</p>
+      </div>
+    </details>
+
+    <article class="panel">
+      <h2>Traffic report</h2>
+      <div class="inline"><button type="button" class="btn ghost" id="repBtn">Write the report</button></div>
+      <div class="report" id="report" hidden></div>
+    </article>
+  </section>
+
+  <!-- ===================== SETUP ===================== -->
+  <section class="view" id="v-setup" hidden>
+    <article class="panel glow">
+      <h2>Google API balance</h2>
+      <div class="balance">
+        <svg width="112" height="112" viewBox="0 0 120 120" aria-hidden="true"><circle class="ring-bg" cx="60" cy="60" r="50" fill="none" stroke-width="10"/><circle class="ring-fg" id="ringBig" cx="60" cy="60" r="50" fill="none" stroke-width="10" stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="0" transform="rotate(-90 60 60)"/></svg>
+        <div>
+          <div class="num" id="balNum">–</div>
+          <div class="fine" id="balSub"></div>
+        </div>
+      </div>
+      <div class="tiles" id="balTiles"></div>
+      <div class="field">
+        <label for="budget" id="budgetLbl">This phone's share of the 5,000 free requests a month</label>
+        <input id="budget" type="number" min="100" max="5000" step="100" value="2500" inputmode="numeric">
+      </div>
+      <div>
+        <div class="eyebrow" style="margin-bottom:8px">Pickup schedule while the app is open</div>
+        <div class="sched" id="sched"><i class="off" style="flex:7"></i><i class="fast" style="flex:1"></i><i class="slow" style="flex:11"></i><i class="fast" style="flex:1"></i><i class="off" style="flex:4"></i><span class="nowmark" id="nowMark"></span></div>
+        <div class="sched-ax"><span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span><span>12 AM</span></div>
+      </div>
+      <p class="fine">7 to 8 AM and 7 to 8 PM: every 5 minutes. 8 AM to 7 PM: every 15 minutes. Nothing outside 7 AM to 8 PM unless you tap Refresh. Each pickup is one request for the route on screen, at most 68 a day.</p>
+      <p class="fine">The count is what this phone has used. Google's own count for the whole key is in Google Cloud Console under APIs and services, Routes API, Quotas.</p>
+    </article>
+
+    <article class="panel">
+      <h2>Shared balance</h2>
+      <p class="fine">Count the requests of both phones in one place. This needs a free Firebase Realtime Database. Enter the same address and the same code on each phone.</p>
+      <div class="field">
+        <label for="syncUrl">Database address</label>
+        <input id="syncUrl" type="text" autocomplete="off" spellcheck="false" inputmode="url" placeholder="https://your-project-default-rtdb.firebaseio.com">
+      </div>
+      <div class="field">
+        <label for="syncCode">Sync code, 16 or more letters and numbers</label>
+        <input id="syncCode" type="text" autocomplete="off" spellcheck="false" autocapitalize="off">
+      </div>
+      <div class="inline">
+        <button type="button" class="btn" id="syncSave">Turn on shared balance</button>
+        <button type="button" class="link" id="syncGen">Make a code</button>
+        <button type="button" class="link" id="syncOff" hidden>Turn off</button>
+      </div>
+      <p class="fine" id="syncMsg" aria-live="polite"></p>
+    </article>
+
+    <article class="panel">
+      <h2>Google key</h2>
+      <div class="field">
+        <label for="gkey">Google Maps API key (Routes API)</label>
+        <input id="gkey" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your key, kept on this phone only">
+      </div>
+      <div class="inline">
+        <button type="button" class="btn" id="gkeySave">Save key</button>
+        <button type="button" class="link" id="gkeyClear">Remove key</button>
+      </div>
+      <p class="fine" id="keyMsg"></p>
+    </article>
+
+    <article class="panel">
+      <h2>My usual trips</h2>
+      <p class="fine">Around these times the app opens on that trip, from 75 minutes before to 45 minutes after. The school trips apply Sunday to Thursday.</p>
+      <div class="trip"><label for="tripT0">Home to Springdale</label><input id="tripT0" type="time"><label class="chk" for="tripOn0"><input id="tripOn0" type="checkbox"> On</label></div>
+      <div class="trip"><label for="tripT1">Springdale to home</label><input id="tripT1" type="time"><label class="chk" for="tripOn1"><input id="tripOn1" type="checkbox"> On</label></div>
+      <div class="trip"><label for="tripT2">Home to Airport</label><input id="tripT2" type="time"><label class="chk" for="tripOn2"><input id="tripOn2" type="checkbox"> On</label></div>
+    </article>
+
+    <article class="panel">
+      <h2>My history</h2>
+      <p class="fine" id="histMsg"></p>
+      <div class="inline"><button type="button" class="link" id="histClear" hidden>Clear my history</button></div>
+    </article>
+
+    <article class="panel">
+      <h2>My places</h2>
+      <div id="places"></div>
+      <div class="inline">
+        <button type="button" class="btn ghost" id="placesSave">Save places</button>
+        <button type="button" class="link" id="relearn">Relearn all routes</button>
+      </div>
+      <p class="fine">Positions are latitude, longitude. To correct one, long-press the spot in Google Maps, copy the two numbers, paste them here and save. Saving makes the app learn that route again on its next pickup.</p>
+    </article>
+
+    <article class="panel">
+      <h2>Estimate settings</h2>
+      <div class="field">
+        <label for="vol">Traffic volume: <span id="volV">normal</span></label>
+        <input id="vol" type="range" min="-30" max="30" step="5" value="0">
+      </div>
+      <div class="field">
+        <span class="lbl">Rain</span>
+        <div class="seg" id="rainSeg" role="group" aria-label="Rain">
+          <button type="button" data-m="auto" aria-pressed="true">Automatic</button>
+          <button type="button" data-m="on" aria-pressed="false">Raining</button>
+          <button type="button" data-m="off" aria-pressed="false">Dry</button>
+        </div>
+        <p class="fine" id="rainMsg"></p>
+      </div>
+    </article>
+
+    <p class="fine">Without a Google key, every figure is an estimate from a typical Dhaka pattern for Sun to Thu, Friday and Saturday. With a key, route times and the two crossing times come from Google, and the forecast bars are the estimate scaled to Google's latest reading. Throughput, queue, CO₂, ambulance time and the conflict index always come from simple formulas, not sensors.</p>
+  </section>
+</main>
+
+<nav class="nav" aria-label="Sections">
+  <div class="nav-in">
+    <a href="#routes" data-tab="routes" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H14a3.5 3.5 0 0 0 0-7h-4a3.5 3.5 0 0 1 0-7h5.5"/></svg>Routes</a>
+    <a href="#points" data-tab="points"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-6 4 3 5-8 4 5"/><path d="M3 21h18"/></svg>Points</a>
+    <a href="#setup" data-tab="setup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Setup</a>
+  </div>
+</nav>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  /* ================= storage ================= */
+  var K = { key: 'dt_gkey', cnt: 'dt_gcnt', budget: 'dt2_budget', cache: 'dt2_rcache', calib: 'dt2_calib', prefs: 'dt2_prefs', places: 'dt2_places', sync: 'dt2_sync', shared: 'dt2_shared', pend: 'dt2_pend', sbudget: 'dt2_sbudget', hist: 'dt2_hist', map: 'dt2_mapcnt', rain: 'dt2_rain', wx: 'dt2_wx' };
+  function ls(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function lsDel(k) { try { localStorage.removeItem(k); } catch (e) {} }
+  function jget(k, def) { try { var v = JSON.parse(ls(k) || 'null'); return v == null ? def : v; } catch (e) { return def; } }
+
+  /* ================= traffic model (typical Dhaka pattern) ================= */
+  var SPAN = 90; // minutes a correction or a Google reading keeps influencing the estimate
+  var PROFILES = {
+    week: { base: 0.08, peaks: [[450, 0.35, 50], [570, 0.8, 75], [780, 0.5, 120], [1095, 0.95, 100], [1260, 0.35, 80]] },
+    fri: { base: 0.05, peaks: [[660, 0.25, 90], [1050, 0.55, 110], [1230, 0.45, 80]] },
+    sat: { base: 0.06, peaks: [[600, 0.5, 90], [810, 0.4, 110], [1080, 0.7, 100], [1230, 0.4, 80]] }
+  };
+  var DAYNAME = { week: 'Sun–Thu', fri: 'Friday', sat: 'Saturday' };
+  var LEVELS = [
+    { k: 0, name: 'Free flow', v: '--c-free', spd: '0.55s' },
+    { k: 1, name: 'Moderate', v: '--c-mod', spd: '1s' },
+    { k: 2, name: 'Heavy', v: '--c-heavy', spd: '1.9s' },
+    { k: 3, name: 'Jammed', v: '--c-jam', spd: '3.6s' }
+  ];
+  var SPOTS = {
+    fly: { title: 'Moghbazar flyover', route: 'Moghbazar → Tejgaon', km: 2.0, free: 35, jam: 5, extra: function () { return 0; }, noun: 'the flyover', crossLabel: 'to cross the flyover stretch', corName: 'Moghbazar flyover to Tejgaon', q: 'Moghbazar Flyover Dhaka' },
+    expr: { title: 'Expressway entrance', route: 'Tejgaon → Elevated Expressway', km: 0.8, free: 30, jam: 4, extra: function (c) { return 1 + 5 * c; }, noun: 'the expressway entrance', crossLabel: 'to reach the ramp and pass the toll gate', corName: 'Tejgaon entrance, Dhaka Elevated Expressway', q: 'Dhaka Elevated Expressway Tejgaon Toll Plaza' }
+  };
+  var ORIGINS = [['Segunbagicha', 4], ['Shahbagh', 8], ['Malibagh', 6], ['Kamalapur', 10], ['Motijheel', 12], ['Gulistan', 14], ['Rampura', 12], ['Banasree', 15], ['Badda', 18], ['Gulshan 1', 14], ['Banani', 16], ['Dhanmondi', 15], ['Jatrabari', 22], ['Mirpur 10', 25], ['Uttara', 28], ['Airport (Kuril)', 24]];
+  var TO_EXPR = [12, 14, 12, 18, 20, 20, 16, 22, 20, 14, 12, 12, 28, 22, 24, 18];
+
+  /* ================= my places and routes ================= */
+  var PLACES = {
+    home: { name: 'Sylcon Villa', full: 'Sylcon Villa, Segun Bagicha', lat: 23.7309669, lng: 90.4073662, pid: 'ChIJ0wo2CQC5VTcRv8xArsjj_9A' },
+    springdale: { name: 'Springdale School', full: 'Springdale International School, Road 55, Gulshan 2', lat: 23.7987304, lng: 90.4120114, pid: 'ChIJMy8LeJ3HVTcR-fH7BgXGuYQ' },
+    airport: { name: 'Airport', full: 'Hazrat Shahjalal International Airport', lat: 23.8434344, lng: 90.4029252, pid: 'ChIJvY9HupHGVTcR7BXrcRP3s9E' },
+    galitos: { name: "Galito's", full: "Galito's Dhanmondi, Satmasjid Road", lat: 23.745404, lng: 90.3715769, pid: 'ChIJwapNIjO_VTcRDM6i4NWgKgU' },
+    dncc: { name: 'DNCC Market', full: 'DNCC Market, Gulshan 1', lat: 23.7797204, lng: 90.4154522, pid: 'ChIJ9zM68-DHVTcRAgGWsjLHxaQ' },
+    dghs: { name: 'DGHS', full: 'Directorate General of Health Services, Mohakhali', lat: 23.7800292, lng: 90.4089426, pid: 'ChIJ4UH6l27HVTcRVJB9CH_S6-I' }
+  };
+  // free = clear-road minutes and km used only until Google has answered once for that route
+  var ROUTES = [
+    { id: 'springdale', free: 24, km: 9.5, track: { fly: true, expr: true } },
+    { id: 'airport', free: 30, km: 16, track: { fly: true, expr: true } },
+    { id: 'galitos', free: 16, km: 5.6, track: { fly: false, expr: false } },
+    { id: 'dncc', free: 19, km: 7.4, track: { fly: true, expr: false } },
+    { id: 'dghs', free: 17, km: 6.8, track: { fly: true, expr: false } }
+  ];
+  // Landmarks used to find the two crossings on Google's own route line
+  var ANCH = {
+    s: { lat: 23.7467019, lng: 90.403107 },      // Holy Family Hospital end of the flyover
+    n: { lat: 23.7574983, lng: 90.3988777 },     // Satrasta end of the flyover
+    poi: { lat: 23.748521, lng: 90.4029174 },    // Mouchak-Moghbazar Flyover
+    toll: { lat: 23.7627566, lng: 90.3940655 },  // Elevated Expressway, Tejgaon toll plaza
+    exit: { lat: 23.752867, lng: 90.3995187 }    // Elevated Expressway, Hatirjheel exit
+  };
+
+  var prefs = jget(K.prefs, {});
+  if (!prefs.track) prefs.track = {};
+  if (!prefs.beta) prefs.beta = {};
+  function savePrefs() { lsSet(K.prefs, JSON.stringify(prefs)); }
+  var placeOv = jget(K.places, {});
+  var cache = jget(K.cache, {});
+  var calib = jget(K.calib, {});
+  function saveCal() { lsSet(K.calib, JSON.stringify(calib)); }
+
+  function routeById(id) { for (var i = 0; i < ROUTES.length; i++) if (ROUTES[i].id === id) return ROUTES[i]; return ROUTES[0]; }
+  function place(id) { var p = PLACES[id], o = placeOv[id]; return o ? { name: p.name, full: p.full, lat: o.lat, lng: o.lng, pid: null } : p; }
+  function rkey(id, dir) { return id + ':' + dir; }
+  function tracked(id, dir) {
+    var r = routeById(id), o = prefs.track[id] || {};
+    var f = o.fly != null ? o.fly : r.track.fly, e = o.expr != null ? o.expr : r.track.expr;
+    return { fly: !!f, expr: dir === 'out' && !!e, exit: dir === 'in' && !!e, exprPref: !!e };
+  }
+  function sig(w) { return (w.fly ? 'F' : '') + (w.expr ? 'E' : '') + (w.exit ? 'X' : '') || '-'; }
+  var NOUN = { fly: 'the Moghbazar flyover section', expr: 'the expressway entrance', exit: 'the Hatirjheel exit' };
+
+  /* ================= time ================= */
+  function dhakaNow() {
+    var parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Dhaka', weekday: 'short', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(new Date());
+    function g(t) { for (var i = 0; i < parts.length; i++) if (parts[i].type === t) return parts[i].value; return '0'; }
+    return { wd: g('weekday'), min: parseInt(g('hour'), 10) * 60 + parseInt(g('minute'), 10) };
+  }
+  function dayKey() { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()); }
+  function dayFor(wd) { return wd === 'Fri' ? 'fri' : wd === 'Sat' ? 'sat' : 'week'; }
+  function t12(m, short) {
+    m = ((Math.round(m) % 1440) + 1440) % 1440;
+    var h = Math.floor(m / 60), mi = m % 60, ap = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    if (short) return h + (mi ? ':' + (mi < 10 ? '0' : '') + mi : '') + ' ' + ap;
+    return h + ':' + (mi < 10 ? '0' : '') + mi + ' ' + ap;
+  }
+  function mins(x) { return Math.max(1, Math.round(x)); }
+
+  var nowRef = dhakaNow();
+  var state = {
+    tab: 'routes', dir: prefs.dir === 'in' ? 'in' : 'out', route: PLACES[prefs.route] && prefs.route !== 'home' ? prefs.route : 'airport',
+    day: dayFor(nowRef.wd), win: 'next3', sel: 0, origin: 0, custom: 15, prio: 'jam', depart: 'now', pick: '',
+    report: { fly: null, expr: null }, spot: 'fly', sim: null, playing: false, speed: 1, vol: 0
+  };
+
+  /* ---- usual trips: the app opens on the trip normally made at that time ---- */
+  var TRIPS_DEF = [
+    { r: 'springdale', d: 'out', at: '07:30', days: 'week', on: true },
+    { r: 'springdale', d: 'in', at: '10:45', days: 'week', on: true },
+    { r: 'airport', d: 'out', at: '19:15', days: 'all', on: true }
+  ];
+  var ARR_DEF = { 'springdale:out': '08:00' };
+  if (!prefs.arr) prefs.arr = {};
+  function trips() {
+    if (!prefs.trips || prefs.trips.length !== TRIPS_DEF.length) prefs.trips = JSON.parse(JSON.stringify(TRIPS_DEF));
+    return prefs.trips;
+  }
+  function hm(s) { var m = /^(\d\d):(\d\d)/.exec(s || ''); return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : null; }
+  function usualNow() {      // the usual trip whose start is between 75 minutes ahead and 45 minutes ago
+    var n = dhakaNow(), best = null;
+    trips().forEach(function (tr) {
+      var at = hm(tr.at);
+      if (!tr.on || at == null || (tr.days === 'week' && (n.wd === 'Fri' || n.wd === 'Sat'))) return;
+      var d = n.min - at;
+      if (d >= -75 && d <= 45 && (!best || Math.abs(d) < Math.abs(best.d))) best = { tr: tr, d: d };
+    });
+    return best && best.tr;
+  }
+  function usualFor(id, dir) { var f = null; trips().forEach(function (tr) { if (tr.on && tr.r === id && tr.d === dir) f = tr; }); return f; }
+  function applyUsual() { var u = usualNow(); if (u) { state.route = u.r; state.dir = u.d; } return !!u; }
+  (function () {   // a home-screen shortcut wins, then the usual trip for this time, then the last route used
+    var go = /[?&]go=([a-z]+)-(out|in)/.exec(location.search || '');
+    if (go && PLACES[go[1]] && go[1] !== 'home') { state.route = go[1]; state.dir = go[2]; } else applyUsual();
+  })();
+
+  /* ---- rain: automatic from Open-Meteo (free, no key), or set by hand ---- */
+  var wx = jget(K.wx, null), wxErr = false, wxBusy = false;
+  function rainMode() { var m = ls(K.rain); return m === 'on' || m === 'off' ? m : 'auto'; }
+  function rainMm() { return wx && Date.now() - wx.ts < 45 * 60000 ? wx.mm : null; }
+  function rainAdd() {
+    var m = rainMode();
+    if (m === 'on') return 0.12;
+    if (m === 'off') return 0;
+    var mm = rainMm();
+    return mm == null ? 0 : mm >= 1 ? 0.2 : mm >= 0.25 ? 0.12 : mm > 0.02 ? 0.06 : 0;
+  }
+  function fetchWx() {
+    if (rainMode() !== 'auto' || wxBusy || (wx && Date.now() - wx.ts < 14 * 60000)) return;
+    wxBusy = true;
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=23.754&longitude=90.4&current=precipitation&timezone=Asia%2FDhaka')
+      .then(function (r) { if (!r.ok) throw new Error('wx'); return r.json(); })
+      .then(function (j) { wx = { mm: (j.current && j.current.precipitation) || 0, ts: Date.now() }; lsSet(K.wx, JSON.stringify(wx)); wxErr = false; })
+      .catch(function () { wxErr = true; })
+      .then(function () { wxBusy = false; renderAll(); });
+  }
+
+  /* ---- my own history: every Google reading is kept, by route, day type and quarter hour ---- */
+  var hist = jget(K.hist, {});
+  function histAdd(id, dir, r) {
+    var h = hist[rkey(id, dir)] || (hist[rkey(id, dir)] = {}), day = dayFor(dhakaNow().wd), dd = h[day] || (h[day] = {}), s = Math.floor(r.at / 15), c = dd[s] || (dd[s] = [0, 0]);
+    c[0]++; c[1] += r.dur; lsSet(K.hist, JSON.stringify(hist));
+  }
+  function histMean(id, dir, t) {    // needs 3 or more readings around that time of day
+    var h = (hist[rkey(id, dir)] || {})[state.day];
+    if (!h) return null;
+    var s = Math.floor((((Math.round(t) % 1440) + 1440) % 1440) / 15), n = 0, wn = 0, sum = 0;
+    [[s - 1, 1], [s, 2], [s + 1, 1]].forEach(function (p) { var c = h[p[0]]; if (c) { n += c[0]; wn += p[1] * c[0]; sum += p[1] * c[1]; } });
+    return n >= 3 ? { min: sum / wn / 60, n: n } : null;
+  }
+  function histCount() { var n = 0; Object.keys(hist).forEach(function (k) { Object.keys(hist[k]).forEach(function (d) { Object.keys(hist[k][d]).forEach(function (s) { n += hist[k][d][s][0]; }); }); }); return n; }
+
+  /* ================= congestion functions ================= */
+  function baseG(m) {
+    m = ((m % 1440) + 1440) % 1440;
+    var P = PROFILES[state.day], k = 1 - P.base;
+    for (var i = 0; i < P.peaks.length; i++) { var p = P.peaks[i]; k *= 1 - p[1] * Math.exp(-0.5 * Math.pow((m - p[0]) / p[2], 2)); }
+    return 1 - k;
+  }
+  function base(m, sp) {
+    sp = sp || state.spot;
+    var b = sp === 'expr' ? Math.min(1, 0.04 + 0.8 * baseG(m - 10)) : baseG(m);
+    return Math.min(1, Math.max(0.02, b * (1 + state.vol / 100) + rainAdd()));
+  }
+  function cong(t, sp) {
+    sp = sp || state.spot;
+    var c = base(t, sp), r = state.report[sp];
+    if (r) {
+      var age = (Date.now() - r.ts) / 60000 + (t - nowRef.min);
+      if (age >= -1 && age < SPAN) c += r.off * (1 - Math.max(0, age) / SPAN);
+    }
+    return Math.min(1, Math.max(0.03, c));
+  }
+  function lvl(c) { return c < 0.28 ? LEVELS[0] : c < 0.52 ? LEVELS[1] : c < 0.76 ? LEVELS[2] : LEVELS[3]; }
+  function lvlRatio(r) { return r < 1.22 ? LEVELS[0] : r < 1.6 ? LEVELS[1] : r < 2.1 ? LEVELS[2] : LEVELS[3]; }
+  function cFromRatio(r) { return Math.min(0.97, Math.max(0.05, 1 - 1 / Math.max(1, r))); }
+  function los(c) { return c < 0.15 ? 'A' : c < 0.3 ? 'B' : c < 0.45 ? 'C' : c < 0.6 ? 'D' : c < 0.8 ? 'E' : 'F'; }
+  function spotCfg(sp) { return SPOTS[sp || state.spot]; }
+  function speed(c, sp) { var s = spotCfg(sp); return s.free - (s.free - s.jam) * Math.pow(c, 1.1); }
+  function crossMin(c, sp) { var s = spotCfg(sp); return s.km / speed(c, sp) * 60 + s.extra(c); }
+  function freeCross(sp) { return crossMin(0, sp); }
+  var CAP = { fly: 4000, expr: 3000 }, QMAX = { fly: 800, expr: 500 };
+  function metrics(c, sp) {
+    sp = sp || state.spot;
+    var tp = CAP[sp] * Math.min(1, 0.25 + 2 * c) * (c > 0.7 ? Math.max(0.55, 1 - (c - 0.7) * 1.4) : 1);
+    var q = c < 0.4 ? 0 : (c - 0.4) / 0.6 * QMAX[sp];
+    return { tp: tp, q: q, co2: q / 7 * 3 * 1.85, amb: freeCross(sp) * 60 * (1 + 0.7 * c), conf: Math.round(c * 100 * (sp === 'fly' ? 0.85 : 0.65)) };
+  }
+  function tile(k, v, n) { return '<div class="tile"><div class="k">' + k + '</div><div class="tv">' + v + '</div>' + (n ? '<div class="n">' + n + '</div>' : '') + '</div>'; }
+  function pressed(group, attr, val) {
+    var b = $(group).querySelectorAll('button');
+    for (var i = 0; i < b.length; i++) b[i].setAttribute('aria-pressed', String(b[i].getAttribute(attr) === String(val)));
+  }
+  function seg(id, attr, fn) {
+    $(id).addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) fn(b.getAttribute(attr)); });
+  }
+
+  /* ================= Google budget and schedule ================= */
+  var WIN_FROM = 420, WIN_TO = 1200;
+  function pickupEvery(m) {           // minutes between automatic pickups at Dhaka minute m; 0 = none
+    if (m >= 420 && m < 480) return 5;      // 7 to 8 AM
+    if (m >= 1140 && m < 1200) return 5;    // 7 to 8 PM
+    if (m >= 480 && m < 1140) return 15;    // 8 AM to 7 PM
+    return 0;
+  }
+  var MAX_PER_DAY = 68;
+  function localUse() { var o = jget(K.cnt, {}), d = dayKey(), m = d.slice(0, 7); return { m: o.m === m ? (o.n || 0) : 0, d: o.d === d ? (o.dn || 0) : 0 }; }
+  /* Shared balance: both phones add to one counter in a Firebase Realtime Database (plain REST, no SDK). */
+  function syncCfg() { var s = jget(K.sync, null); return s && s.url && s.code ? s : null; }
+  function syncBase() { var s = syncCfg(); return s.url.replace(/\/+$/, '') + '/dt/' + encodeURIComponent(s.code); }
+  function pendGet() { return jget(K.pend, {}); }
+  function usage() {
+    var loc = localUse();
+    if (!syncCfg()) return { m: loc.m, d: loc.d, mine: loc.m, shared: false };
+    var d = dayKey(), mo = d.slice(0, 7), sh = jget(K.shared, null), p = pendGet(), pm = 0;
+    Object.keys(p).forEach(function (k) { if (k.slice(0, 7) === mo) pm += p[k]; });
+    if (!sh || sh.m !== mo) return { m: Math.max(loc.m, pm), d: loc.d, mine: loc.m, shared: true, known: false, wait: pm };
+    return { m: sh.n + pm, d: ((sh.d || {})['d' + d.slice(8)] || 0) + (p[d] || 0), mine: loc.m, shared: true, known: true, ts: sh.ts, wait: pm };
+  }
+  function bump(k) {
+    var u = localUse(), d = dayKey();
+    lsSet(K.cnt, JSON.stringify({ m: d.slice(0, 7), n: Math.max(0, u.m + k), d: d, dn: Math.max(0, u.d + k) }));
+    if (syncCfg()) {
+      var p = pendGet(); p[d] = Math.max(0, (p[d] || 0) + k); if (!p[d]) delete p[d];
+      lsSet(K.pend, JSON.stringify(p)); scheduleSync();
+    }
+  }
+  function addUse() { bump(1); }
+  function undoUse() { bump(-1); }
+  function budget() {
+    if (syncCfg()) { var s = jget(K.shared, null), v = parseInt(ls(K.sbudget), 10); return s && s.cap > 0 ? s.cap : (v > 0 ? v : 4900); }
+    var w = parseInt(ls(K.budget), 10); return w > 0 ? w : 2500;
+  }
+  function left() { return Math.max(0, budget() - usage().m); }
+  var syncTimer = null, syncBusy = false, syncErr = '';
+  function scheduleSync() { clearTimeout(syncTimer); syncTimer = setTimeout(syncNow, 1500); }
+  function syncNow() {       // send this phone's waiting counts, then read the shared total
+    if (!syncCfg() || syncBusy) return Promise.resolve();
+    syncBusy = true;
+    var b = syncBase(), p = pendGet(), chain = Promise.resolve();
+    function ok(res) { if (!res.ok) throw new Error('REFUSED ' + res.status); return res; }
+    Object.keys(p).forEach(function (day) {
+      var k = p[day];
+      if (!(k > 0)) return;
+      var inc = { '.sv': { increment: k } }, bodyv = { n: inc };
+      bodyv['d/d' + day.slice(8)] = inc;
+      chain = chain.then(function () {
+        return fetch(b + '/use/' + day.slice(0, 7) + '.json', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bodyv) }).then(ok).then(function () {
+          var q = pendGet(); q[day] = Math.max(0, (q[day] || 0) - k); if (!q[day]) delete q[day];
+          lsSet(K.pend, JSON.stringify(q));
+        });
+      });
+    });
+    return chain.then(function () { return fetch(b + '.json').then(ok).then(function (r) { return r.json(); }); }).then(function (j) {
+      j = j || {};
+      var mo = dayKey().slice(0, 7), u = (j.use || {})[mo] || {};
+      lsSet(K.shared, JSON.stringify({ m: mo, n: u.n || 0, d: u.d || {}, cap: j.cap > 0 ? j.cap : 0, ts: Date.now() }));
+      syncErr = '';
+    }).catch(function (e) {
+      syncErr = e && /^REFUSED/.test(e.message) ? 'The database refused the request (' + e.message.slice(8) + '). Check the address, the code and the database rules.' : 'The shared database could not be reached. Counts wait on this phone and are sent later.';
+    }).then(function () { syncBusy = false; renderHeader(); if (state.tab === 'setup') renderSetup(); });
+  }
+  function ageMin(r) { return r ? (Date.now() - r.ts) / 60000 : Infinity; }
+
+  /* ================= geometry on Google's route line ================= */
+  function decode(str) {
+    var i = 0, lat = 0, lng = 0, out = [];
+    while (i < str.length) {
+      var b, shift = 0, res = 0;
+      do { b = str.charCodeAt(i++) - 63; res |= (b & 31) << shift; shift += 5; } while (b >= 32);
+      lat += (res & 1) ? ~(res >> 1) : (res >> 1);
+      shift = 0; res = 0;
+      do { b = str.charCodeAt(i++) - 63; res |= (b & 31) << shift; shift += 5; } while (b >= 32);
+      lng += (res & 1) ? ~(res >> 1) : (res >> 1);
+      out.push({ lat: lat / 1e5, lng: lng / 1e5 });
+    }
+    return out;
+  }
+  var KX = 111320 * Math.cos(23.76 * Math.PI / 180), KY = 110540;
+  function xy(p) { return { x: p.lng * KX, y: p.lat * KY }; }
+  function prep(pts) {
+    var q = pts.map(xy), cum = [0];
+    for (var i = 1; i < q.length; i++) cum.push(cum[i - 1] + Math.hypot(q[i].x - q[i - 1].x, q[i].y - q[i - 1].y));
+    return { q: q, cum: cum, total: cum[cum.length - 1] || 0 };
+  }
+  function nearest(P, a) {            // closest point of the line to landmark a: distance d, arc length s
+    var A = xy(a), best = { d: Infinity, s: 0 };
+    for (var i = 1; i < P.q.length; i++) {
+      var p = P.q[i - 1], r = P.q[i], dx = r.x - p.x, dy = r.y - p.y, L = dx * dx + dy * dy;
+      var t = L ? Math.max(0, Math.min(1, ((A.x - p.x) * dx + (A.y - p.y) * dy) / L)) : 0;
+      var d = Math.hypot(A.x - (p.x + t * dx), A.y - (p.y + t * dy));
+      if (d < best.d) best = { d: d, s: P.cum[i - 1] + t * Math.sqrt(L) };
+    }
+    return best;
+  }
+  function pointAt(P, s) {            // point and travel heading at arc length s
+    s = Math.max(0, Math.min(P.total, s));
+    var i = 1;
+    while (i < P.cum.length - 1 && P.cum[i] < s) i++;
+    var p = P.q[i - 1], r = P.q[i], L = P.cum[i] - P.cum[i - 1], t = L ? (s - P.cum[i - 1]) / L : 0;
+    var h = Math.round((Math.atan2(r.x - p.x, r.y - p.y) * 180 / Math.PI + 360)) % 360;
+    return { lat: +((p.y + t * (r.y - p.y)) / KY).toFixed(6), lng: +((p.x + t * (r.x - p.x)) / KX).toFixed(6), h: h };
+  }
+  function tollText(route) {          // does any step near the toll plaza talk about the expressway?
+    var T = xy(ANCH.toll), hit = false;
+    (route.legs || []).forEach(function (lg) {
+      (lg.steps || []).forEach(function (st) {
+        var ll = st.startLocation && st.startLocation.latLng, tx = st.navigationInstruction && st.navigationInstruction.instructions;
+        if (!ll || !tx) return;
+        var p = xy({ lat: ll.latitude, lng: ll.longitude });
+        if (Math.hypot(p.x - T.x, p.y - T.y) <= 900 && /express|expy|elevated|toll/i.test(tx)) hit = true;
+      });
+    });
+    return hit;
+  }
+  /* Find where a route enters and leaves the flyover section, the expressway entrance (from home)
+     and the Hatirjheel exit (to home). */
+  function detect(route, want) {
+    var enc = route.polyline && route.polyline.encodedPolyline, found = { fly: false, expr: false, exit: false };
+    if (!enc) return { cps: [], found: found };
+    var P = prep(decode(enc)), marks = [], fo = null, a, b, t;
+    if (P.q.length < 2) return { cps: [], found: found };
+    if (want.exit) {
+      t = nearest(P, ANCH.exit);
+      if (t.d <= 150 && t.s > 400) {
+        var xo = Math.min(t.s + 250, P.total - 150);
+        found.exit = true;
+        marks.push({ k: 'xIn', s: Math.max(60, t.s - 600) }, { k: 'xOut', s: xo });
+        // after the exit the way home crosses Moghbazar: time it up to the Holy Family end
+        if (want.fly) { a = nearest(P, ANCH.s); if (a.d <= 350 && a.s > xo + 300 && a.s < P.total - 100) { found.fly = true; marks.push({ k: 'flyOut', s: a.s }); } }
+      }
+    } else {
+      if (want.fly) {
+        a = nearest(P, ANCH.s); b = nearest(P, ANCH.n);
+        var s1 = Math.min(a.s, b.s), s2 = Math.max(a.s, b.s);
+        if (a.d <= 350 && b.d <= 350 && s2 - s1 >= 500 && s2 - s1 <= 4500) { found.fly = true; marks.push({ k: 'flyIn', s: s1 }, { k: 'flyOut', s: s2 }); fo = s2; }
+      }
+      if (want.expr) {
+        t = nearest(P, ANCH.toll);
+        if ((t.d <= 70 || (t.d <= 300 && tollText(route))) && (fo == null || t.s > fo - 100)) {
+          var sIn = t.s - 600, sOut = Math.min(t.s + 300, P.total - 150);
+          if (sOut > (fo == null ? 0 : fo) + 150) {
+            found.expr = true;
+            if (fo == null || sIn >= fo + 80) marks.push({ k: 'exIn', s: Math.max(60, sIn) });
+            marks.push({ k: 'exOut', s: sOut });
+          }
+        }
+      }
+    }
+    marks.sort(function (x, y) { return x.s - y.s; });
+    return { cps: marks.map(function (m) { var q = pointAt(P, m.s); return { k: m.k, lat: q.lat, lng: q.lng, h: q.h }; }), found: found };
+  }
+
+  /* ================= Google Routes API ================= */
+  var URL_ROUTES = 'https://routes.googleapis.com/directions/v2:computeRoutes';
+  var MASK = 'routes.duration,routes.staticDuration,routes.distanceMeters,routes.legs.duration,routes.legs.staticDuration,routes.legs.distanceMeters,routes.legs.steps.navigationInstruction.instructions';
+  var MASK_CAL = MASK + ',routes.polyline.encodedPolyline,routes.legs.steps.startLocation';
+  function wp(p) { return (p.pid && !prefs.noPid) ? { placeId: p.pid } : { location: { latLng: { latitude: p.lat, longitude: p.lng } } }; }
+  function body(id, dir, cps, learn) {
+    var h = place('home'), d = place(id);
+    var b = { origin: wp(dir === 'out' ? h : d), destination: wp(dir === 'out' ? d : h), travelMode: 'DRIVE', routingPreference: 'TRAFFIC_AWARE', languageCode: 'en', units: 'METRIC' };
+    if (cps && cps.length) b.intermediates = cps.map(function (p) {
+      var loc = { latLng: { latitude: p.lat, longitude: p.lng } };
+      if (p.h != null) loc.heading = p.h;
+      return { location: loc };
+    });
+    else if (learn) b.computeAlternativeRoutes = true;
+    if (learn) b.polylineQuality = 'HIGH_QUALITY';
+    return b;
+  }
+  function gcall(b, mask) {
+    if (left() <= 0) { var e0 = new Error('BUDGET'); return Promise.reject(e0); }
+    addUse();
+    return fetch(URL_ROUTES, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': ls(K.key) || '', 'X-Goog-FieldMask': mask }, body: JSON.stringify(b) })
+      .then(null, function (e) { undoUse(); var n = new Error('NETWORK'); throw n; })   // never reached Google, so it is not counted
+      .then(function (res) {
+        return res.json().catch(function () { return {}; }).then(function (j) {
+          if (!res.ok) { var e = new Error((j.error && j.error.message) || ('Google returned ' + res.status)); e.status = res.status; throw e; }
+          if (!j.routes || !j.routes.length) throw new Error('Google found no route between those places');
+          return j.routes;
+        });
+      });
+  }
+  function sec(s) { return parseInt(s, 10) || 0; }
+  function mkReading(route, cal) {
+    var legs = route.legs || [], n = cal ? cal.cps.length : 0;
+    var r = { dur: sec(route.duration), st: sec(route.staticDuration || route.duration), m: route.distanceMeters || 0, ts: Date.now(), at: dhakaNow().min, segs: null };
+    if (n && legs.length === n + 1) {
+      var nodes = ['o'].concat(cal.cps.map(function (p) { return p.k; })).concat(['d']);
+      r.segs = legs.map(function (lg, j) {
+        var from = nodes[j], to = nodes[j + 1];
+        var type = (to === 'flyOut' && (from === 'flyIn' || from === 'xOut')) ? 'fly' : (to === 'exOut' && (from === 'exIn' || from === 'flyOut')) ? 'expr' : (from === 'xIn' && to === 'xOut') ? 'exit' : 'road';
+        var fo = (lg.steps || []).some(function (s) { return s.navigationInstruction && /fly\s*-?\s*over/i.test(s.navigationInstruction.instructions || ''); });
+        return { type: type, to: to, x: from === 'xOut', dur: sec(lg.duration), st: sec(lg.staticDuration || lg.duration), m: lg.distanceMeters || 0, fo: fo };
+      });
+    }
+    return r;
+  }
+  /* Learn the checkpoints for a route from Google's own route line (1 request, 2 if it has to insist).
+     Must-haves: from home, the flyover and the entrance when ticked; to home, the Hatirjheel exit when
+     the expressway is ticked (the Moghbazar stretch after it is timed only if the route passes it). */
+  function calibrate(id, dir, want) {
+    var kk = rkey(id, dir);
+    var must = want.exit ? ['exit'] : [].concat(want.fly ? ['fly'] : [], want.expr ? ['expr'] : []);
+    function score(d) { var n = 0; must.forEach(function (k) { if (d.found[k]) n += 10; }); return n + (d.found.fly ? 1 : 0); }
+    function fin(best, def) {
+      var cal = { cps: best.d.cps, sig: sig(want), miss: must.filter(function (k) { return !best.d.found[k]; }), ts: Date.now() };
+      calib[kk] = cal; saveCal();
+      return { cal: cal, def: def };
+    }
+    return gcall(body(id, dir, null, true), MASK_CAL).then(function (routes) {
+      var best = null;
+      routes.forEach(function (rt) { var d = detect(rt, want); if (!best || score(d) > score(best.d)) best = { d: d }; });
+      if (score(best.d) >= must.length * 10 || left() <= 1) return fin(best, routes[0]);
+      var forced = want.exit ? [ANCH.exit] : [].concat(want.fly ? [ANCH.poi] : [], want.expr ? [ANCH.toll] : []);
+      return gcall(body(id, dir, forced, true), MASK_CAL).then(function (r2) {
+        var d2 = detect(r2[0], want);
+        if (score(d2) > score(best.d)) best = { d: d2 };
+        return fin(best, routes[0]);
+      }, function () { return fin(best, routes[0]); });
+    });
+  }
+  var busy = false, liveErr = '';
+  function errText(e) {
+    if (e && e.message === 'BUDGET') return "This phone's monthly share of " + budget() + ' requests is used up, so Google was not asked. Raise the share in Setup or wait for next month.';
+    if (e && e.message === 'NETWORK') return 'Google could not be reached. Check the connection. Live data works in the installed app, not in the Claude preview page.';
+    return 'Google did not answer: ' + ((e && e.message) || 'unknown error');
+  }
+  function pickup(id, dir) {
+    if (busy || !ls(K.key)) return Promise.resolve();
+    if (left() <= 0) { liveErr = errText(new Error('BUDGET')); renderRoutes(); return Promise.resolve(); }
+    busy = true; liveErr = ''; renderRoutes();
+    var kk = rkey(id, dir), want = tracked(id, dir), cal = calib[kk], p;
+    if ((want.fly || want.expr || want.exit) && (!cal || cal.sig !== sig(want))) {
+      p = calibrate(id, dir, want).then(function (o) {
+        if (!o.cal.cps.length || left() <= 0) return mkReading(o.def, null);
+        return gcall(body(id, dir, o.cal.cps), MASK).then(function (rs) { return mkReading(rs[0], o.cal); }, function (e) {
+          if (e.status === 400) { o.cal.fail = true; saveCal(); }
+          return mkReading(o.def, null);
+        });
+      });
+    } else {
+      var use = cal && !cal.fail && cal.cps.length ? cal : null;
+      p = gcall(body(id, dir, use ? use.cps : null), MASK).then(function (rs) { return mkReading(rs[0], use); }, function (e) {
+        if (use && e.status === 400) { cal.fail = true; saveCal(); }
+        throw e;
+      });
+    }
+    return p.then(function (r) {
+      cache[kk] = r; lsSet(K.cache, JSON.stringify(cache));
+      applyReading(id, dir, r, true);
+      histAdd(id, dir, r);
+    }).catch(function (e) {
+      if (!prefs.noPid && e && e.status >= 400 && /place/i.test(e.message || '')) { prefs.noPid = true; savePrefs(); }
+      liveErr = errText(e);
+    }).then(function () { busy = false; renderAll(); });
+  }
+  /* A Google reading also corrects the two point estimates and the route forecast. */
+  function applyReading(id, dir, r, fit) {
+    if (state.sim != null || ageMin(r) >= SPAN) return;
+    if (dir === 'out' && r.segs) r.segs.forEach(function (s) {
+      if ((s.type === 'fly' || s.type === 'expr') && s.st > 0) {
+        var c = cFromRatio(s.dur / s.st), cur = state.report[s.type];
+        if (!cur || cur.ts <= r.ts) state.report[s.type] = { val: String(c), off: c - base(r.at, s.type), ts: r.ts, at: r.at, src: 'google-live' };
+      }
+    });
+    if (fit && r.st > 0) {
+      prefs.beta[rkey(id, dir)] = Math.min(6, Math.max(0.15, (r.dur / r.st - 1) / Math.max(0.08, cong(r.at, 'fly'))));
+      savePrefs();
+    }
+  }
+
+  /* ================= route estimate, view model ================= */
+  function freeMin(id, dir) { var r = cache[rkey(id, dir)]; return r && r.st ? r.st / 60 : routeById(id).free; }
+  function D(id, dir, t) {          // typical pattern, replaced by my own history where there is enough of it
+    var m = freeMin(id, dir) * (1 + (prefs.beta[rkey(id, dir)] || 1.4) * cong(t, 'fly')), h = histMean(id, dir, t);
+    if (!h) return m;
+    var w = Math.min(1, h.n / 6);
+    return w * h.min + (1 - w) * m;
+  }
+  function scAt(v, k) { return 1 + (v.scale - 1) * Math.max(0, 1 - Math.max(0, k) / 120); }   // a live reading matters less the further ahead
+  function view(id, dir) {
+    var kk = rkey(id, dir), r = cache[kk], t = nowRef.min, want = tracked(id, dir), st = freeMin(id, dir);
+    var live = !!r && state.sim == null && ageMin(r) <= 25, v = { live: live, st: st, r: r, want: want, cal: calib[kk] };
+    if (live) {
+      v.total = r.dur / 60; v.km = r.m / 1000;
+      v.segs = r.segs ? r.segs.map(function (s) { return { type: s.type, to: s.to, x: s.x, min: s.dur / 60, st: s.st / 60, fo: s.fo }; }) : [{ type: 'road', to: 'd', min: v.total, st: st }];
+    } else {
+      v.total = D(id, dir, t); v.km = r && r.m ? r.m / 1000 : routeById(id).km;
+      var cf = cong(t, 'fly'), keys = [];   // the timed stretches, in driving order
+      if (want.exit) { keys.push({ type: 'exit', to: 'xOut', min: 2 + 5 * cf, st: 2, pre: 'xIn' }); if (want.fly) keys.push({ type: 'fly', to: 'flyOut', x: true, min: crossMin(cf, 'fly') * 0.6, st: freeCross('fly') * 0.6 }); }
+      else {
+        if (want.fly) keys.push({ type: 'fly', to: 'flyOut', min: crossMin(cf, 'fly'), st: freeCross('fly'), pre: 'flyIn' });
+        if (want.expr) keys.push({ type: 'expr', to: 'exOut', min: crossMin(cong(t, 'expr'), 'expr'), st: freeCross('expr'), pre: 'exIn' });
+      }
+      var ksum = keys.reduce(function (a, k) { return a + k.min; }, 0), rest = Math.max(3, v.total - ksum);
+      var roads = keys.filter(function (k) { return k.pre; }).length + 1;
+      var sh = roads === 3 ? [0.22, 0.12, 0.66] : roads === 2 ? (dir === 'out' ? [0.3, 0.7] : want.exit ? [0.78, 0.22] : [0.7, 0.3]) : [1], i = 0;
+      v.total = rest + ksum; v.segs = [];
+      keys.forEach(function (k) { if (k.pre) v.segs.push({ type: 'road', to: k.pre, min: rest * sh[i++] }); v.segs.push(k); });
+      v.segs.push({ type: 'road', to: 'd', min: rest * sh[i] });
+    }
+    v.scale = live ? v.total / Math.max(1, D(id, dir, t)) : 1;
+    v.lv = lvlRatio(v.total / Math.max(1, st));
+    v.hist = !live && !!histMean(id, dir, t);
+    return v;
+  }
+  function mapsLink(id, dir, cal) {
+    var h = place('home'), d = place(id), o = dir === 'out' ? h : d, e = dir === 'out' ? d : h;
+    var u = 'https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=' + o.lat + ',' + o.lng + '&destination=' + e.lat + ',' + e.lng;
+    if (cal && cal.cps && cal.cps.length && !cal.fail) u += '&waypoints=' + encodeURIComponent(cal.cps.map(function (p) { return p.lat + ',' + p.lng; }).join('|'));
+    return u;
+  }
+
+  /* ================= render: header ================= */
+  function renderHeader() {
+    var n = dhakaNow();
+    $('clock').textContent = t12(n.min) + ' · ' + n.wd + ' · Dhaka' + (rainAdd() > 0 ? ' · rain' : '');
+    var hasKey = !!ls(K.key), l = left(), b = budget(), frac = hasKey ? l / b : 1;
+    $('balLeft').textContent = hasKey ? l.toLocaleString('en-US') : 'No key';
+    $('ringMini').setAttribute('stroke-dashoffset', String(87.96 * (1 - frac)));
+    $('ringMini').style.stroke = frac < 0.1 ? 'var(--c-jam)' : frac < 0.25 ? 'var(--c-heavy)' : 'var(--cy)';
+  }
+
+  /* ================= render: routes ================= */
+  var ROAD_LABEL = { flyIn: 'Roads to the flyover', exIn: 'Tejgaon roads to the ramp', xIn: 'Expressway to the Hatirjheel exit' };
+  function renderHero() {
+    var id = state.route, dir = state.dir, v = view(id, dir), d = place(id), h = place('home'), t = nowRef.min;
+    var from = dir === 'out' ? h : d, to = dir === 'out' ? d : h;
+    var hero = $('hero');
+    hero.style.setProperty('--lvl', 'var(' + v.lv.v + ')');
+
+    // advice: best departure in the next hour
+    var best = { k: 0, D: v.total }, k, fc = [];
+    for (k = 5; k <= 60; k += 5) { var dk = D(id, dir, t + k) * scAt(v, k); if (dk < best.D - 0.01) best = { k: k, D: dk }; }
+    var wait = v.total - best.D >= 5, tag, tip;
+    if (wait) { tag = 'Wait until ' + t12(t + best.k); tip = 'Leaving in ' + best.k + ' min should take about ' + mins(best.D) + ' min, ' + mins(v.total - best.D) + ' min less than leaving now.'; }
+    else if (v.lv.k <= 1) { tag = 'Good time to go'; tip = 'Nothing in the next hour looks meaningfully quicker.'; }
+    else { tag = 'Go now, it will not ease soon'; tip = 'Traffic is ' + v.lv.name.toLowerCase() + ', and waiting up to an hour saves under 5 minutes.'; }
+
+    // journey rail
+    var cur = t, jh = '<div class="j stop"><div class="j-rail"><span class="j-dot"></span></div><div class="j-body"><b>' + esc(from.name) + '</b><span>leave ' + t12(cur) + '</span></div></div>';
+    v.segs.forEach(function (s) {
+      var lv = s.st ? lvlRatio(s.min / Math.max(0.5, s.st)) : v.lv, sty = 'style="--lvl:var(' + lv.v + ');--spd:' + lv.spd + '"';
+      if (s.type === 'road') {
+        jh += '<div class="j road" ' + sty + '><div class="j-rail"><span class="j-line"></span></div><div class="j-body"><span>' + (ROAD_LABEL[s.to] || ('On to ' + esc(to.name))) + '</span><span>' + mins(s.min) + ' min</span></div></div>';
+      } else {
+        var nm = s.type === 'fly' ? (s.x ? 'Moghbazar crossing' : 'Moghbazar flyover') : s.type === 'exit' ? 'Expressway · Hatirjheel exit' : 'Expressway · Tejgaon entrance';
+        var how = s.type === 'fly' ? (s.fo ? ' · over the flyover' : '') : '';
+        jh += '<div class="j key" ' + sty + '><div class="j-rail"><span class="j-line"></span></div><div class="j-body"><div class="kcard"><div class="kn">' + nm + '</div><div class="kt">' + mins(s.min) + '<small>MIN</small></div><div class="km"><b>' + lv.name + '</b> · clear road ' + mins(s.st) + ' min · reach ' + t12(cur) + how + '</div></div></div></div>';
+      }
+      cur += s.min;
+    });
+    jh += '<div class="j stop end"><div class="j-rail"><span class="j-dot"></span></div><div class="j-body"><b>' + esc(to.name) + '</b><span>arrive ' + t12(t + v.total) + '</span></div></div>';
+
+    // forecast bars, every 10 minutes for 2 hours
+    var mx = 0, mn = Infinity;
+    for (k = 0; k <= 120; k += 10) { var val = D(id, dir, t + k) * scAt(v, k); fc.push({ k: k, D: val }); mx = Math.max(mx, val); mn = Math.min(mn, val); }
+    var span = mx - mn;
+    var bars = fc.map(function (b) {
+      var lv = lvlRatio(b.D / Math.max(1, v.st));
+      return '<i class="' + (wait && b.k === best.k ? 'best' : '') + '" style="height:' + (span < 2 ? 60 : Math.round(28 + 72 * (b.D - mn) / span)) + '%;--lvl:var(' + lv.v + ')" title="' + t12(t + b.k) + ': ' + mins(b.D) + ' min"></i>';
+    }).join('');
+
+    // source line
+    var hasKey = !!ls(K.key), cls = '', src;
+    if (busy) { src = 'Asking Google…'; cls = 'on'; }
+    else if (liveErr) { src = liveErr; cls = 'err'; }
+    else if (state.sim != null) src = 'Estimate for the replay time. Live data is paused.';
+    else if (!hasKey) src = 'Estimate from the typical pattern. Add your Google key in Setup for live times.';
+    else if (v.live) {
+      var a = Math.round(ageMin(v.r)), ev = pickupEvery(dhakaNow().min), due = ev ? Math.max(0, ev - ageMin(v.r)) : -1;
+      src = 'Google live · updated ' + (a < 1 ? 'just now' : a + ' min ago') + ' · ' + (due < 0 ? 'automatic pickups run 7 AM to 8 PM' : due < 0.6 ? 'next pickup due now' : 'next pickup about ' + t12(dhakaNow().min + Math.ceil(due)));
+      cls = 'on';
+      if (v.cal && v.cal.miss && v.cal.miss.length) src += '. Google\'s routes did not pass ' + v.cal.miss.map(function (m) { return NOUN[m]; }).join(' or ') + ', so it is not timed here.';
+      if (v.cal && v.cal.fail) src += '. The saved checkpoints were rejected, so only the total is shown. Use "Relearn all routes" in Setup.';
+    } else if (v.r) src = 'Estimate. The last Google reading, ' + Math.round(ageMin(v.r)) + ' min ago, was ' + mins(v.r.dur / 60) + ' min.' + (pickupEvery(dhakaNow().min) ? '' : ' Automatic pickups run 7 AM to 8 PM.');
+    else src = 'Estimate. No Google reading for this route yet.';
+
+    var chips = '<button type="button" class="chip" data-track="fly" aria-pressed="' + v.want.fly + '">Flyover</button>' +
+      (dir === 'out' ? '<button type="button" class="chip" data-track="expr" aria-pressed="' + v.want.exprPref + '">Expressway entrance</button>' : '<button type="button" class="chip" data-track="expr" aria-pressed="' + v.want.exprPref + '">Hatirjheel exit</button>');
+
+    if (!v.live && v.hist && state.sim == null && !busy && !liveErr) src = /typical pattern/.test(src) ? 'Estimate from your own past readings for this time of day. Add your Google key in Setup for live times.' : src + ' It uses your own past readings for this time of day.';
+    var us = usualFor(id, dir), usual = '';
+    if (us) {
+      var ua = hm(us.at), uk = ua - t;
+      if (uk < -720) uk += 1440;
+      var ud = D(id, dir, t + uk) * scAt(v, uk);
+      usual = '<p>Usual start ' + t12(ua) + (uk > 0 && uk <= 240 ? ': about ' + mins(ud) + ' min then, arriving ' + t12(t + uk + ud) + '.' : '.') + '</p>';
+    }
+    var shareTxt = 'Leaving ' + from.name + ' now. Arriving at ' + to.name + ' about ' + t12(t + v.total) + ' (' + mins(v.total) + ' min drive).';
+    hero.setAttribute('data-share', shareTxt);
+    hero.innerHTML =
+      '<div class="hero-top"><div style="min-width:0"><div class="eyebrow">' + (dir === 'out' ? 'From ' + esc(h.name) : 'To ' + esc(h.name) + ' from') + '</div><h1 class="dest">' + esc(d.name) + '</h1><div class="sub">' + esc(d.full) + '</div></div><span class="pill" style="--lvl:var(' + v.lv.v + ')">' + v.lv.name + '</span></div>' +
+      '<div class="hero-main"><div class="big">' + mins(v.total) + '<small>min</small></div><div class="facts">' +
+      '<div><b>' + t12(t + v.total) + '</b><small>arrive, leaving now</small></div>' +
+      '<div><b>+' + Math.max(0, Math.round(v.total - v.st)) + ' min</b><small>over clear road, ' + mins(v.st) + ' min</small></div>' +
+      '<div><b>' + v.km.toFixed(1) + ' km</b><small>' + (v.live ? 'Google live' : v.hist ? 'your history' : 'estimate') + '</small></div></div></div>' +
+      '<div class="advice"><div><div class="tag">' + tag + '</div><p>' + tip + '</p>' + usual + '</div></div>' +
+      '<div class="journey">' + jh + '</div>' +
+      '<div><div class="eyebrow" style="margin-bottom:8px">Minutes if you leave later</div><div class="fc-bars">' + bars + '</div><div class="fc-axis"><span>now <b>' + mins(fc[0].D) + '</b></span><span>' + t12(t + 60, true) + ' <b>' + mins(fc[6].D) + '</b></span><span>' + t12(t + 120, true) + ' <b>' + mins(fc[12].D) + '</b></span></div></div>' +
+      '<div class="chips"><span class="eyebrow">Time these on this route</span>' + chips + '</div>' +
+      '<div class="src ' + cls + '"><span class="live"></span><span>' + esc(src) + '</span></div>' +
+      '<div class="actions">' + (hasKey ? '<button type="button" class="btn" data-act="refresh"' + (busy ? ' disabled' : '') + '>Refresh now</button>' : '<a class="btn" href="#setup">Add Google key</a>') +
+      '<a class="btn ghost" data-act="share" href="https://wa.me/?text=' + encodeURIComponent(shareTxt) + '" target="_blank" rel="noopener noreferrer">Share ETA</a>' +
+      '<a class="btn ghost" href="' + mapsLink(id, dir, v.cal) + '" target="_blank" rel="noopener noreferrer">Open in Maps</a></div>';
+  }
+  function renderList() {
+    var h = '';
+    ROUTES.forEach(function (r) {
+      var v = view(r.id, state.dir), p = place(r.id), via = [];
+      if (v.want.fly) via.push('flyover');
+      if (v.want.expr || v.want.exit) via.push('expressway');
+      h += '<button type="button" class="rt" data-route="' + r.id + '" aria-pressed="' + (r.id === state.route) + '" style="--lvl:var(' + v.lv.v + ')"><span style="min-width:0"><span class="rt-n">' + esc(p.name) + '</span><br><span class="rt-m">' + (via.length ? 'via ' + via.join(' + ') : 'direct') + ' · ' + v.lv.name.toLowerCase() + '</span></span><span class="rt-t">' + mins(v.total) + '<small>' + (v.live ? 'LIVE' : 'EST') + ' MIN</small></span></button>';
+    });
+    $('routeList').innerHTML = h;
+    $('routesNote').textContent = ls(K.key) ? 'Only the route you have open is refreshed from Google. The others show their last reading, or an estimate once that is over 25 minutes old.' : 'These are estimates. With a Google key in Setup, the open route shows live times.';
+  }
+  var ARR_BUF = 5;   // minutes of spare time the planner keeps
+  function arrVal() { var kk = rkey(state.route, state.dir), v = prefs.arr[kk]; return v === undefined ? (ARR_DEF[kk] || '') : v; }
+  function renderArrive() {
+    var id = state.route, dir = state.dir, v = view(id, dir), t = nowRef.min, val = arrVal(), to = dir === 'out' ? place(id) : place('home'), out = $('arrOut');
+    $('arrLbl').textContent = 'Be at ' + to.name + ' by';
+    if (document.activeElement !== $('arrBy')) $('arrBy').value = val;
+    $('arrClear').hidden = !val;
+    var target = hm(val);
+    if (target == null) { out.hidden = true; return; }
+    if (target < t - 120) target += 1440;            // a time already well past means tomorrow
+    var leave = null, dur = 0, x;
+    for (x = target - 3; x >= target - 300; x--) { var d = D(id, dir, x) * scAt(v, x - t); if (x + d + ARR_BUF <= target) { leave = x; dur = d; break; } }
+    var lv, title, text;
+    if (leave != null && leave >= t) {
+      var wait = Math.round(leave - t);
+      lv = LEVELS[0]; title = 'Leave by ' + t12(leave);
+      text = (wait < 1 ? 'That is now. ' : wait < 60 ? 'That is in ' + wait + ' min. ' : '') + 'About ' + mins(dur) + ' min on the road at that time, arriving around ' + t12(leave + dur) + ' with ' + ARR_BUF + ' min to spare.';
+    } else if (t + v.total <= target) {
+      lv = LEVELS[1]; title = 'Leave now';
+      text = 'You would arrive about ' + t12(t + v.total) + ', ' + Math.max(0, Math.round(target - t - v.total)) + ' min before ' + t12(target) + '. The ' + ARR_BUF + ' min of spare time is gone.';
+    } else {
+      lv = LEVELS[3]; title = 'Running late';
+      text = 'Leaving now gets you there about ' + t12(t + v.total) + ', ' + Math.round(t + v.total - target) + ' min after ' + t12(target) + '.';
+    }
+    out.hidden = false; out.style.setProperty('--lvl', 'var(' + lv.v + ')');
+    out.innerHTML = '<div class="title">' + title + '</div><p>' + text + '</p>' + (target - t > 180 ? '<p class="fine">That is over 3 hours away, so this comes from ' + (v.hist || histMean(id, dir, target - 30) ? 'your history and ' : '') + 'the typical pattern, not from live traffic.</p>' : '');
+  }
+  function renderRoutes() {
+    pressed('dirSeg', 'data-d', state.dir);
+    $('simBanner').hidden = state.sim == null;
+    if (state.sim != null) $('simText').textContent = 'Replay time ' + t12(state.sim) + '. Showing estimates.';
+    renderHero(); renderArrive(); renderList();
+  }
+
+  /* ================= render: points ================= */
+  function setLevel(el, lv, c) {
+    el.style.setProperty('--lvl', 'var(' + lv.v + ')');
+    el.innerHTML = '<span class="dot"></span><span class="name">' + lv.name + '</span><span class="idx">Index ' + Math.round(c * 100) + '/100</span>';
+  }
+  function renderNow() {
+    var s = spotCfg(), c = cong(nowRef.min), lv = lvl(c), cr = crossMin(c), mt = metrics(c);
+    $('spotRoute').textContent = s.route;
+    $('nowCrossK').textContent = s.crossLabel;
+    pressed('spotSeg', 'data-s', state.spot);
+    $('gmLink').href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(s.q);
+    $('clock2').textContent = t12(nowRef.min) + ' · ' + DAYNAME[state.day] + ' pattern' + (state.sim != null ? ' · replay time' : '');
+    $('nowH').textContent = state.sim != null ? 'At this time' : 'Right now';
+    $('now').style.setProperty('--lvl', 'var(' + lv.v + ')');
+    setLevel($('nowLevel'), lv, c);
+    $('nowSpeed').textContent = Math.round(speed(c)) + ' km/h';
+    $('nowCross').textContent = Math.round(cr) + ' min';
+    $('nowExtra').textContent = '+' + Math.max(0, Math.round(cr - freeCross())) + ' min';
+    var cl = mt.conf < 25 ? 'Low' : mt.conf < 50 ? 'Medium' : mt.conf < 70 ? 'High' : 'Severe';
+    $('tiles').innerHTML =
+      tile('Level of service', 'LOS ' + los(c), 'A is free flow, F is gridlock') +
+      tile('Throughput', (Math.round(mt.tp / 10) * 10) + ' veh/h', 'vehicles passing per hour') +
+      tile('Queue length', (Math.round(mt.q / 10) * 10) + ' m', mt.q ? 'backs up behind the point' : 'no queue') +
+      tile('Ambulance ETA', Math.round(mt.amb) + ' s', 'to clear the point with priority') +
+      tile('Idling CO₂', Math.round(mt.co2) + ' kg/h', 'from vehicles stuck in the queue') +
+      tile('Conflict index', cl + ' (' + mt.conf + ')', 'weaving and merging pressure');
+    var trend = '';
+    for (var k = 5; k <= 240; k += 5) {
+      var l2 = lvl(cong(nowRef.min + k));
+      if (l2.k !== lv.k) { trend = (l2.k > lv.k ? 'Builds to ' : 'Eases to ') + '<strong>' + l2.name.toLowerCase() + '</strong> around <strong>' + t12(nowRef.min + k) + '</strong>.'; break; }
+    }
+    $('nowTrend').innerHTML = trend || 'No change in level expected over the next 4 hours.';
+    var r = state.report[state.spot];
+    if (r && (Date.now() - r.ts) / 60000 >= SPAN) { state.report[state.spot] = r = null; }
+    $('clearReport').hidden = !r;
+    pressed('reportSeg', 'data-r', r && !r.src ? r.val : 'none');
+    pressed('gmSeg', 'data-r', r && r.src === 'google' ? r.val : 'none');
+    $('calibText').textContent = r
+      ? 'Adjusted using ' + (r.src === 'google-live' ? 'Google live traffic from your route' : r.src === 'google' ? 'your Google Maps colour' : 'your report') + ' at ' + t12(r.at) + '. The effect fades out over 90 minutes.'
+      : 'This is the typical pattern. A live Google reading from one of your routes corrects it automatically. You can also correct it by hand below.';
+  }
+  function renderCorridor() {
+    var html = '', out = {};
+    ['fly', 'expr'].forEach(function (sp) {
+      var c = cong(nowRef.min, sp), lv = lvl(c), cr = crossMin(c, sp), mini = '';
+      out[sp] = { cr: cr, d: cr - freeCross(sp), m: metrics(c, sp) };
+      for (var i = 0; i < 36; i++) { var cc = cong(nowRef.min + i * 5, sp); mini += '<i style="height:' + Math.max(8, Math.round(cc * 100)) + '%;--lvl:var(' + lvl(cc).v + ')"></i>'; }
+      html += '<div class="corrow" style="--lvl:var(' + lv.v + ')"><div class="nm">' + SPOTS[sp].corName + '</div><div class="meta">' + lv.name + ' · LOS ' + los(c) + ' · ' + Math.round(c * 100) + '</div><div class="meter"><b style="width:' + Math.round(c * 100) + '%"></b></div><div class="mini" aria-hidden="true">' + mini + '</div><div class="meta wide">' + Math.round(speed(c, sp)) + ' km/h · ' + Math.round(cr) + ' min to clear · bars show the next 3 hours</div></div>';
+    });
+    $('corRows').innerHTML = html;
+    function pct(a, b) { return b < 0.5 ? null : Math.round((a - b) / b * 100); }
+    function imp(k, v) { return tile(k, v === null ? 'n/a' : (v > 0 ? '+' : '') + v + '%', ''); }
+    $('corImpact').innerHTML = imp('Avg delay', pct(out.expr.d, out.fly.d)) + imp('Flow rate', pct(out.expr.m.tp, out.fly.m.tp)) + imp('Queue length', pct(out.expr.m.q, out.fly.m.q));
+    var d = Math.round(out.fly.cr - out.expr.cr);
+    $('corSummary').textContent = Math.abs(d) < 2 ? 'Both points clear in about the same time right now.' : d > 0 ? 'The expressway entrance clears about ' + d + ' min faster than the Moghbazar flyover right now.' : 'The Moghbazar flyover clears about ' + (-d) + ' min faster than the expressway entrance right now.';
+  }
+  function originFree(sp) {
+    if (state.origin === ORIGINS.length) return Math.max(1, Math.min(120, state.custom || 15));
+    return (sp || state.spot) === 'expr' ? TO_EXPR[state.origin] : ORIGINS[state.origin][1];
+  }
+  function trip(t, sp) {
+    sp = sp || state.spot;
+    var c = cong(t, 'fly'), approach = originFree(sp) * (1 + 1.4 * c), at = t + approach, cf = cong(at, sp), Dm = approach + crossMin(cf, sp);
+    return { t: t, at: at, D: Dm, A: t + Dm, lv: lvl(cf) };
+  }
+  function plan() {
+    var t0 = nowRef.min;
+    if (state.depart === 'pick' && /^\d\d:\d\d$/.test(state.pick)) {
+      var pm = parseInt(state.pick.slice(0, 2), 10) * 60 + parseInt(state.pick.slice(3), 10);
+      t0 = pm < nowRef.min - 2 ? pm + 1440 : pm;
+    }
+    var arr = [], i;
+    for (i = 0; i <= 180; i += 5) arr.push(trip(t0 + i));
+    var now = arr[0], bestD = arr[0], bestA = arr[0];
+    for (i = 1; i < arr.length; i++) {
+      if (i <= 12 && arr[i].D < bestD.D - 0.01) bestD = arr[i];
+      if (arr[i].A < bestA.A - 0.01) bestA = arr[i];
+    }
+    var target = state.prio === 'jam' ? bestD : bestA, goNow = state.prio === 'jam' ? now.D - bestD.D < 5 : now.A <= bestA.A + 2;
+    var noun = spotCfg().noun, lv, title, text, when = state.depart === 'pick' ? 'at ' + t12(t0) : 'now';
+    if (goNow) {
+      lv = now.lv.k <= 1 ? LEVELS[0] : now.lv;
+      title = now.lv.k <= 1 ? 'Good time to start' : 'Leave ' + (state.depart === 'pick' ? 'then' : 'now') + ', it will not improve soon';
+      text = 'Leaving ' + when + ' you reach ' + noun + ' around ' + t12(now.at) + ' when it is ' + now.lv.name.toLowerCase() + '. Expect about ' + Math.round(now.D) + ' min on the road.';
+    } else {
+      lv = LEVELS[1];
+      title = 'Wait until ' + t12(target.t);
+      var late = Math.round(target.A - now.A);
+      text = 'Leaving at ' + t12(target.t) + ' cuts the drive from about ' + Math.round(now.D) + ' to ' + Math.round(target.D) + ' min. ' + (late > 0 ? 'You would get past ' + noun + ' about ' + late + ' min later than leaving ' + when + '.' : 'You would also get past it sooner.');
+    }
+    var os = state.spot === 'fly' ? 'expr' : 'fly', oa = trip(t0, os), v = $('verdict');
+    v.style.setProperty('--lvl', 'var(' + lv.v + ')');
+    v.innerHTML = '<div class="title">' + title + '</div><p>' + text + '</p><p class="fine">Reaching ' + SPOTS[os].noun + ' from the same start at the same time takes about ' + Math.round(oa.D) + ' min.</p>';
+    var rows = '';
+    for (i = 0; i <= 24; i += 3) {
+      var a = arr[i];
+      rows += '<tr class="' + ((goNow && i === 0) || (!goNow && a === target) ? 'best' : '') + '"><td class="mono">' + t12(a.t) + '</td><td><span class="lv" style="--lvl:var(' + a.lv.v + ')">' + a.lv.name + '</span></td><td class="mono">' + Math.round(a.D) + ' min</td><td class="mono">' + t12(a.A) + '</td></tr>';
+    }
+    if (!goNow && (arr.indexOf(target) % 3 !== 0 || arr.indexOf(target) > 24)) rows += '<tr class="best"><td class="mono">' + t12(target.t) + '</td><td><span class="lv" style="--lvl:var(' + target.lv.v + ')">' + target.lv.name + '</span></td><td class="mono">' + Math.round(target.D) + ' min</td><td class="mono">' + t12(target.A) + '</td></tr>';
+    document.querySelector('#opts tbody').innerHTML = rows;
+  }
+  function winSpec() {
+    var s0 = Math.floor(nowRef.min / 5) * 5;
+    if (state.win === 'next3') return { start: s0, n: 36, every: 30 };
+    if (state.win === 'rest') { var n = Math.max(12, Math.round((1440 - s0) / 5)); return { start: s0, n: n, every: n > 100 ? 120 : 60 }; }
+    return { start: 0, n: 288, every: 180 };
+  }
+  function renderChart() {
+    var W = winSpec(), i, html = '', ax = '';
+    if (state.sel >= W.n) state.sel = W.n - 1;
+    for (i = 0; i < W.n; i++) { var c = cong(W.start + i * 5); html += '<i style="height:' + Math.max(5, Math.round(c * 100)) + '%;--lvl:var(' + lvl(c).v + ')"></i>'; }
+    $('bars').innerHTML = html;
+    $('cursor').style.left = ((state.sel + 0.5) / W.n * 100) + '%';
+    for (i = 0; i < W.n; i += W.every / 5) {
+      var leftPct = i / W.n * 100;
+      if (leftPct > 92) break;
+      ax += '<span style="left:' + leftPct + '%;' + (i === 0 ? '' : 'transform:translateX(-50%)') + '">' + t12(W.start + i * 5, true) + '</span>';
+    }
+    $('axis').innerHTML = ax;
+    var t = W.start + state.sel * 5, c2 = cong(t), l2 = lvl(c2);
+    $('readout').innerHTML = '<span><strong>' + t12(t) + '</strong>' + (t === Math.floor(nowRef.min / 5) * 5 ? ' (now)' : '') + '</span><span class="lv" style="--lvl:var(' + l2.v + ')">' + l2.name + '</span><span>' + Math.round(speed(c2)) + ' km/h</span><span>' + Math.round(crossMin(c2)) + ' min to cross</span>';
+  }
+  function renderSlots() {
+    var s0 = Math.floor(nowRef.min / 5) * 5, rows = '';
+    for (var i = 0; i < 36; i++) {
+      var t = s0 + i * 5, c = cong(t), lv = lvl(c);
+      rows += '<tr><td class="mono">' + t12(t) + '</td><td><span class="lv" style="--lvl:var(' + lv.v + ')">' + lv.name + '</span></td><td class="mono">' + Math.round(speed(c)) + ' km/h</td><td class="mono">' + Math.round(crossMin(c)) + ' min</td></tr>';
+    }
+    document.querySelector('#slots tbody').innerHTML = rows;
+  }
+  function renderPoints() { renderNow(); renderCorridor(); plan(); renderChart(); renderSlots(); }
+
+  /* ================= render: setup ================= */
+  function renderSetup() {
+    var hasKey = !!ls(K.key), u = usage(), b = budget(), l = left(), frac = l / b, sc = syncCfg();
+    $('balNum').textContent = l.toLocaleString('en-US');
+    $('balSub').textContent = (u.shared ? 'requests left this month across all phones, out of ' : 'requests left on this phone this month, out of ') + b.toLocaleString('en-US');
+    $('ringBig').setAttribute('stroke-dashoffset', String(314.16 * (1 - frac)));
+    $('ringBig').style.stroke = frac < 0.1 ? 'var(--c-jam)' : frac < 0.25 ? 'var(--c-heavy)' : 'var(--cy)';
+    $('balTiles').innerHTML = tile('Used this month', u.m.toLocaleString('en-US'), u.shared ? 'all phones' : 'this phone') +
+      tile('Used today', String(u.d), u.shared ? 'all phones' : 'of at most ' + MAX_PER_DAY + ' automatic') +
+      (u.shared ? tile('This phone', u.mine.toLocaleString('en-US'), 'of the month\'s total') : tile('A full month', '≈ 2,100', 'if open 7 AM to 8 PM daily')) +
+      tile('Right now', (function (e) { return e ? 'Every ' + e + ' min' : 'Paused'; })(pickupEvery(dhakaNow().min)), hasKey ? 'automatic pickups' : 'no key saved yet');
+    $('budgetLbl').textContent = u.shared ? 'Monthly limit shared by all phones (Google gives 5,000 free)' : "This phone's share of the 5,000 free requests a month";
+    if (document.activeElement !== $('budget')) $('budget').value = String(b);
+    $('nowMark').style.left = (dhakaNow().min / 1440 * 100) + '%';
+    $('keyMsg').textContent = hasKey ? 'A key is saved on this phone. It is never sent anywhere except to Google.' : 'No key saved. Create one in Google Cloud Console with only the Routes API enabled.';
+    $('syncOff').hidden = !sc;
+    $('syncMsg').textContent = !sc ? 'Off. Each phone counts by itself.' : syncErr ? syncErr : !u.known ? 'On. Waiting for the first answer from the database.' :
+      'On. Last synced ' + (function (a) { return a < 1 ? 'just now' : a + ' min ago'; })(Math.round((Date.now() - u.ts) / 60000)) + (u.wait ? '. ' + u.wait + ' request' + (u.wait > 1 ? 's' : '') + ' waiting to be sent.' : '.');
+  }
+  function renderSetup2() {
+    var m = rainMode(), mm = rainMm();
+    pressed('rainSeg', 'data-m', m);
+    $('rainMsg').textContent = m === 'on' ? 'Set to raining. Estimates are raised.' : m === 'off' ? 'Set to dry. Rain is ignored.' :
+      mm == null ? (wxErr ? 'The weather service could not be reached, so rain is not counted for now.' : 'Checking the weather…') :
+      mm > 0.02 ? 'Open-Meteo reports ' + mm.toFixed(1) + ' mm in the last 15 minutes near Moghbazar. Estimates are raised.' : 'Open-Meteo reports no rain near Moghbazar.';
+    var n = histCount();
+    $('histMsg').textContent = n ? n + ' Google reading' + (n > 1 ? 's' : '') + ' saved on this phone. Once a route has 3 or more readings around a time of day, its estimate for that time comes from them.' : 'No readings saved yet. Every Google reading is kept on this phone, and after a few weeks the estimates come from your own trips.';
+    $('histClear').hidden = !n;
+  }
+  function renderPlaces() {
+    var h = '';
+    Object.keys(PLACES).forEach(function (id) {
+      var p = place(id);
+      h += '<div class="place"><div><b>' + esc(PLACES[id].name) + '</b><br><small>' + esc(PLACES[id].full) + '</small></div><input type="text" id="pl_' + id + '" value="' + p.lat + ', ' + p.lng + '" inputmode="decimal" aria-label="Latitude, longitude for ' + esc(PLACES[id].name) + '"><a href="https://www.google.com/maps/search/?api=1&query=' + p.lat + ',' + p.lng + '" target="_blank" rel="noopener noreferrer" style="font-size:.8rem">Check this spot in Google Maps</a></div>';
+    });
+    $('places').innerHTML = h;
+  }
+
+  function renderAll() {
+    nowRef = state.sim == null ? dhakaNow() : { wd: nowRef.wd, min: state.sim };
+    renderHeader();
+    if (state.tab === 'routes') renderRoutes();
+    else if (state.tab === 'points') renderPoints();
+    else { renderSetup(); renderSetup2(); }
+  }
+
+  /* ================= tabs ================= */
+  function setTab() {
+    var t = (location.hash || '').replace('#', '');
+    state.tab = t === 'points' || t === 'setup' ? t : 'routes';
+    ['routes', 'points', 'setup'].forEach(function (n) { $('v-' + n).hidden = n !== state.tab; });
+    var links = document.querySelectorAll('.nav a');
+    for (var i = 0; i < links.length; i++) { if (links[i].getAttribute('data-tab') === state.tab) links[i].setAttribute('aria-current', 'page'); else links[i].removeAttribute('aria-current'); }
+    renderAll();
+    window.scrollTo(0, 0);
+  }
+  window.addEventListener('hashchange', setTab);
+
+  /* ================= automatic pickups ================= */
+  function autoTick() {
+    if (!ls(K.key) || busy || state.sim != null || document.visibilityState !== 'visible') return;
+    var ev = pickupEvery(dhakaNow().min);
+    if (!ev) return;
+    if (ageMin(cache[rkey(state.route, state.dir)]) >= ev - 0.25) pickup(state.route, state.dir);
+  }
+  setInterval(autoTick, 20000);
+  var hiddenAt = 0;
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState !== 'visible') { hiddenAt = Date.now(); return; }
+    if (hiddenAt && Date.now() - hiddenAt > 30 * 60000) applyUsual();     // back after a while: open on the usual trip for this time
+    fetchWx(); renderAll(); autoTick(); syncNow();
+  });
+  var lastMin = nowRef.min;
+  setInterval(function () {
+    if (state.sim != null) return;
+    var n = dhakaNow();
+    if (n.min !== lastMin) { lastMin = n.min; renderAll(); fetchWx(); }
+  }, 10000);
+
+  /* ================= wiring: routes ================= */
+  seg('dirSeg', 'data-d', function (d) { state.dir = d; prefs.dir = d; savePrefs(); liveErr = ''; renderRoutes(); autoTick(); });
+  $('routeList').addEventListener('click', function (e) {
+    var b = e.target.closest('.rt');
+    if (!b) return;
+    state.route = b.getAttribute('data-route'); prefs.route = state.route; savePrefs(); liveErr = '';
+    renderRoutes(); autoTick();
+    $('hero').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  });
+  $('hero').addEventListener('click', function (e) {
+    var c = e.target.closest('[data-track]'), a = e.target.closest('[data-act]');
+    if (c) {
+      var k = c.getAttribute('data-track'), o = prefs.track[state.route] || (prefs.track[state.route] = {}), w = tracked(state.route, state.dir);
+      o[k] = !(k === 'fly' ? w.fly : w.exprPref);
+      delete calib[rkey(state.route, 'out')]; delete calib[rkey(state.route, 'in')]; saveCal();
+      delete cache[rkey(state.route, 'out')]; delete cache[rkey(state.route, 'in')]; lsSet(K.cache, JSON.stringify(cache));
+      savePrefs(); renderRoutes(); autoTick();
+    } else if (a && a.getAttribute('data-act') === 'share') {
+      if (navigator.share) {      // the phone's share sheet; if it refuses, fall back to the WhatsApp link
+        e.preventDefault();
+        navigator.share({ text: $('hero').getAttribute('data-share') }).catch(function (err) { if (!err || err.name !== 'AbortError') window.location.href = a.href; });
+      }
+    } else if (a) {
+      if (ageMin(cache[rkey(state.route, state.dir)]) < 2) { liveErr = ''; renderRoutes(); return; }
+      pickup(state.route, state.dir);
+    }
+  });
+  $('simOff').addEventListener('click', function () { stopPlay(); setSim(null); $('preset').value = 'live'; renderAll(); });
+
+  /* ================= wiring: points ================= */
+  var sel = $('origin'), oh = '';
+  ORIGINS.forEach(function (o, i) { oh += '<option value="' + i + '">' + o[0] + '</option>'; });
+  sel.innerHTML = oh + '<option value="' + ORIGINS.length + '">Other place…</option>';
+  sel.addEventListener('change', function () { state.origin = parseInt(sel.value, 10); $('customRow').hidden = state.origin !== ORIGINS.length; plan(); });
+  $('custom').addEventListener('input', function () { state.custom = parseInt(this.value, 10) || 15; plan(); });
+  seg('spotSeg', 'data-s', function (s) { state.spot = s; state.sel = 0; renderPoints(); });
+  seg('daySeg', 'data-day', function (d) { state.day = d; state.report = { fly: null, expr: null }; pressed('daySeg', 'data-day', d); renderAll(); });
+  seg('winSeg', 'data-w', function (w) { state.win = w; pressed('winSeg', 'data-w', w); state.sel = w === 'all' ? Math.floor(nowRef.min / 5) : 0; renderChart(); });
+  seg('prioSeg', 'data-p', function (p) { state.prio = p; pressed('prioSeg', 'data-p', p); plan(); });
+  seg('departSeg', 'data-d', function (d) {
+    state.depart = d; pressed('departSeg', 'data-d', d); $('pick').hidden = d !== 'pick';
+    if (d === 'pick' && !state.pick) {
+      var m = (Math.ceil(nowRef.min / 15) * 15 + 30) % 1440;
+      state.pick = ('0' + Math.floor(m / 60)).slice(-2) + ':' + ('0' + (m % 60)).slice(-2);
+      $('pick').value = state.pick;
+    }
+    plan();
+  });
+  $('pick').addEventListener('input', function () { state.pick = this.value; plan(); });
+  function manual(src) {
+    return function (r) {
+      var val = parseFloat(r), rep = { val: r, off: val - base(nowRef.min), ts: Date.now(), at: nowRef.min };
+      if (src) rep.src = src;
+      state.report[state.spot] = rep; renderPoints();
+    };
+  }
+  seg('reportSeg', 'data-r', manual(''));
+  seg('gmSeg', 'data-r', manual('google'));
+  $('clearReport').addEventListener('click', function () { state.report[state.spot] = null; renderPoints(); });
+  var chart = $('chart');
+  function pickSlot(e) {
+    var rect = chart.getBoundingClientRect(), W = winSpec();
+    state.sel = Math.floor(Math.min(Math.max(e.clientX - rect.left, 0), rect.width - 1) / rect.width * W.n);
+    renderChart();
+  }
+  chart.addEventListener('pointerdown', pickSlot);
+  chart.addEventListener('pointermove', function (e) { if (e.buttons || e.pointerType === 'mouse') pickSlot(e); });
+  chart.addEventListener('keydown', function (e) {
+    var W = winSpec();
+    if (e.key === 'ArrowRight') { state.sel = Math.min(W.n - 1, state.sel + 1); renderChart(); e.preventDefault(); }
+    if (e.key === 'ArrowLeft') { state.sel = Math.max(0, state.sel - 1); renderChart(); e.preventDefault(); }
+  });
+  var timer = null;
+  function setSim(v) { state.sim = v; state.report = { fly: null, expr: null }; if (v == null) reapply(); }
+  function stopPlay() { if (timer) { clearInterval(timer); timer = null; } state.playing = false; $('playBtn').textContent = 'Play day'; }
+  function startPlay() {
+    if (state.sim == null) setSim(nowRef.min);
+    $('preset').value = 'custom'; state.playing = true; $('playBtn').textContent = 'Pause';
+    timer = setInterval(function () { var nx = state.sim + 5; if (nx >= 1440) { stopPlay(); return; } state.sim = nx; renderAll(); }, 1000 / state.speed);
+  }
+  $('preset').addEventListener('change', function () { stopPlay(); setSim(this.value === 'live' ? null : parseInt(this.value, 10)); renderAll(); });
+  $('playBtn').addEventListener('click', function () { if (state.playing) stopPlay(); else { startPlay(); renderAll(); } });
+  seg('speedSeg', 'data-v', function (v) { state.speed = parseInt(v, 10); pressed('speedSeg', 'data-v', v); if (state.playing) { stopPlay(); startPlay(); } });
+  $('liveBtn').addEventListener('click', function () { stopPlay(); setSim(null); $('preset').value = 'live'; renderAll(); });
+  function buildReport() {
+    var s = spotCfg(), c = cong(nowRef.min), lv = lvl(c), mt = metrics(c), cr = crossMin(c), k, out;
+    out = (state.sim != null ? 'At ' + t12(nowRef.min) + ' (replay)' : 'Right now (' + t12(nowRef.min) + ')') + ', traffic at ' + s.noun + ' is ' + lv.name.toLowerCase() + ' (LOS ' + los(c) + ', index ' + Math.round(c * 100) + '/100). Average speed is about ' + Math.round(speed(c)) + ' km/h and it takes about ' + Math.round(cr) + ' min to get through, ' + Math.max(0, Math.round(cr - freeCross())) + ' min more than on clear roads. ';
+    out += mt.q ? 'A queue of roughly ' + (Math.round(mt.q / 10) * 10) + ' m is building behind it. ' : 'No queue is expected behind it. ';
+    var tr = '';
+    for (k = 5; k <= 240; k += 5) { var l2 = lvl(cong(nowRef.min + k)); if (l2.k !== lv.k) { tr = (l2.k > lv.k ? 'It builds to ' : 'It eases to ') + l2.name.toLowerCase() + ' around ' + t12(nowRef.min + k) + '. '; break; } }
+    out += tr || 'No change in level is expected over the next 4 hours. ';
+    var v = view(state.route, state.dir), d = place(state.route);
+    out += (state.dir === 'out' ? 'Home to ' + d.name : d.name + ' to home') + ' takes about ' + mins(v.total) + ' min (' + (v.live ? 'Google live' : 'estimate') + '), ' + Math.max(0, Math.round(v.total - v.st)) + ' min over a clear road.';
+    v.segs.forEach(function (sg) { if (sg.type !== 'road') out += ' ' + (sg.type === 'fly' ? (sg.x ? 'Moghbazar crossing' : 'Moghbazar flyover') : sg.type === 'exit' ? 'Hatirjheel exit' : 'Expressway entrance') + ': ' + mins(sg.min) + ' min.'; });
+    return out;
+  }
+  function selectText(el) { var r = document.createRange(); r.selectNodeContents(el); var g = window.getSelection(); g.removeAllRanges(); g.addRange(r); }
+  $('repBtn').addEventListener('click', function () {
+    var txt = buildReport(), box = $('report');
+    box.hidden = false;
+    box.innerHTML = '<p></p><button type="button" class="link" id="copyRep">Copy report</button>';
+    var para = box.firstChild; para.textContent = txt;
+    $('copyRep').addEventListener('click', function () {
+      var b = this;
+      try { navigator.clipboard.writeText(txt).then(function () { b.textContent = 'Copied'; }, function () { selectText(para); }); } catch (e) { selectText(para); }
+    });
+  });
+
+  /* ================= wiring: setup ================= */
+  $('gkey').value = ls(K.key) || '';
+  $('budget').value = String(budget());
+  $('budget').addEventListener('change', function () {
+    var v = Math.min(5000, parseInt(this.value, 10) || 0);
+    if (v > 0 && syncCfg()) {     // the shared limit lives in the database so both phones use the same number
+      lsSet(K.sbudget, String(v));
+      var s = jget(K.shared, null); if (s) { s.cap = v; lsSet(K.shared, JSON.stringify(s)); }
+      fetch(syncBase() + '/cap.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: String(v) }).catch(function () {});
+    } else if (v > 0) lsSet(K.budget, String(v));
+    renderAll();
+  });
+  (function () { var s = syncCfg(); if (s) { $('syncUrl').value = s.url; $('syncCode').value = s.code; } })();
+  $('syncGen').addEventListener('click', function () {
+    var a = 'abcdefghijkmnpqrstuvwxyz23456789', out = '', r = new Uint8Array(20);
+    (window.crypto || window.msCrypto).getRandomValues(r);
+    for (var i = 0; i < r.length; i++) out += a[r[i] % a.length];
+    $('syncCode').value = out;
+  });
+  $('syncSave').addEventListener('click', function () {
+    var url = $('syncUrl').value.trim(), code = $('syncCode').value.trim();
+    if (!/^https:\/\/[^\s]+$/.test(url)) { $('syncMsg').textContent = 'Enter the database address. It starts with https:// and you copy it from the Firebase console.'; return; }
+    if (!/^[A-Za-z0-9_-]{16,}$/.test(code)) { $('syncMsg').textContent = 'The code needs 16 or more letters and numbers, with no spaces. Tap "Make a code" for a random one.'; return; }
+    lsSet(K.sync, JSON.stringify({ url: url, code: code })); lsDel(K.shared);
+    var u = localUse(), p = {};   // what this phone already used this month joins the shared count once
+    if (u.m > 0 && !jget(K.sync + '_seeded', null)) { p[dayKey()] = u.m; lsSet(K.pend, JSON.stringify(p)); }
+    lsSet(K.sync + '_seeded', '1');
+    syncErr = ''; renderAll(); syncNow();
+  });
+  $('syncOff').addEventListener('click', function () { lsDel(K.sync); lsDel(K.shared); lsDel(K.pend); lsDel(K.sync + '_seeded'); syncErr = ''; renderAll(); });
+  $('gkeySave').addEventListener('click', function () {
+    var v = $('gkey').value.trim();
+    if (v) { lsSet(K.key, v); liveErr = ''; }
+    renderAll(); autoTick();
+  });
+  $('gkeyClear').addEventListener('click', function () { lsDel(K.key); $('gkey').value = ''; liveErr = ''; renderAll(); });
+  function forgetRoutes() { calib = {}; saveCal(); cache = {}; lsSet(K.cache, '{}'); prefs.beta = {}; savePrefs(); }
+  $('placesSave').addEventListener('click', function () {
+    var ov = {};
+    Object.keys(PLACES).forEach(function (id) {
+      var m = ($('pl_' + id).value || '').match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
+      if (!m) return;
+      var la = parseFloat(m[1]), lo = parseFloat(m[2]);
+      if (Math.abs(la - PLACES[id].lat) > 1e-6 || Math.abs(lo - PLACES[id].lng) > 1e-6) ov[id] = { lat: la, lng: lo };
+    });
+    placeOv = ov; lsSet(K.places, JSON.stringify(ov)); forgetRoutes(); renderPlaces(); renderAll();
+    this.textContent = 'Saved';
+  });
+  $('relearn').addEventListener('click', function () { forgetRoutes(); this.textContent = 'Done, routes relearn on their next pickup'; renderAll(); });
+  $('vol').addEventListener('input', function () {
+    state.vol = parseInt(this.value, 10);
+    $('volV').textContent = state.vol === 0 ? 'normal' : (state.vol > 0 ? '+' : '') + state.vol + '%';
+  });
+  seg('rainSeg', 'data-m', function (m) { if (m === 'auto') lsDel(K.rain); else lsSet(K.rain, m); wxErr = false; renderAll(); fetchWx(); });
+  trips().forEach(function (tr, i) {
+    $('tripT' + i).value = tr.at; $('tripOn' + i).checked = !!tr.on;
+    $('tripT' + i).addEventListener('change', function () { if (hm(this.value) != null) { trips()[i].at = this.value; savePrefs(); } });
+    $('tripOn' + i).addEventListener('change', function () { trips()[i].on = this.checked; savePrefs(); });
+  });
+  $('histClear').addEventListener('click', function () { hist = {}; lsDel(K.hist); renderAll(); });
+  $('arrBy').addEventListener('change', function () { prefs.arr[rkey(state.route, state.dir)] = this.value || ''; savePrefs(); renderArrive(); });
+  $('arrClear').addEventListener('click', function () { prefs.arr[rkey(state.route, state.dir)] = ''; savePrefs(); $('arrBy').value = ''; renderArrive(); });
+
+  /* ================= live traffic map (Maps JavaScript API, loaded only on tap) ================= */
+  var NIGHT = [
+    { elementType: 'geometry', stylers: [{ color: '#0b1020' }] },
+    { elementType: 'labels.text.fill', stylers: [{ color: '#8ea0c8' }] },
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#05070f' }] },
+    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#1c2540' }] },
+    { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#2a3760' }] },
+    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#06202b' }] },
+    { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+    { featureType: 'transit', stylers: [{ visibility: 'off' }] }
+  ];
+  var CENTRE = { lat: 23.7548, lng: 90.3992 }, gmap = null;
+  function mapLoads(add) { var o = jget(K.map, {}), m = dayKey().slice(0, 7), n = o.m === m ? (o.n || 0) : 0; if (add) { n++; lsSet(K.map, JSON.stringify({ m: m, n: n })); } return n; }
+  function drawMap() {
+    var g = window.google.maps, box = $('mapBox');
+    box.hidden = false;
+    if (!gmap) {
+      gmap = new g.Map(box, { center: CENTRE, zoom: 15, disableDefaultUI: true, zoomControl: true, gestureHandling: 'cooperative', styles: NIGHT, backgroundColor: '#05070F' });
+      new g.TrafficLayer().setMap(gmap);
+      [[ANCH.poi, 'Moghbazar flyover'], [ANCH.toll, 'Tejgaon entrance'], [ANCH.exit, 'Hatirjheel exit']].forEach(function (p) {
+        new g.Marker({ position: { lat: p[0].lat, lng: p[0].lng }, map: gmap, title: p[1], label: { text: p[1], color: '#ECF1FF', fontSize: '11px', fontWeight: '700' },
+          icon: { path: g.SymbolPath.CIRCLE, scale: 6, fillColor: '#FFB24D', fillOpacity: 1, strokeColor: '#05070F', strokeWeight: 2, labelOrigin: new g.Point(0, -3) } });
+      });
+      mapLoads(true);
+    } else { gmap.setCenter(CENTRE); gmap.setZoom(15); }
+    $('mapBtn').textContent = 'Recentre the map';
+    $('mapMsg').textContent = 'Green, orange and red are Google\'s live traffic. Map loads this month on this phone: ' + mapLoads(false) + ' (10,000 a month were free when this was built).';
+  }
+  $('mapBtn').addEventListener('click', function () {
+    var key = ls(K.key);
+    if (!key) { $('mapMsg').textContent = 'Add your Google key in Setup first.'; return; }
+    if (window.google && window.google.maps && window.google.maps.Map) { drawMap(); return; }
+    $('mapMsg').textContent = 'Loading the map…';
+    window.gm_authFailure = function () { $('mapBox').hidden = true; gmap = null; $('mapMsg').textContent = 'Google refused the key for maps. Enable "Maps JavaScript API" in Google Cloud and add it to the key\'s API restrictions.'; };
+    window.__dtMap = function () { try { drawMap(); } catch (e) { $('mapMsg').textContent = 'The map could not be drawn.'; } };
+    var s = document.createElement('script');
+    s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) + '&callback=__dtMap&loading=async&v=weekly';
+    s.async = true;
+    s.onerror = function () { $('mapMsg').textContent = 'The map could not be loaded. Check the connection. It does not load on the Claude preview page.'; };
+    document.head.appendChild(s);
+  });
+
+  /* ================= start ================= */
+  function reapply() {  // saved Google readings keep correcting the estimates after a reload
+    Object.keys(cache).map(function (k) { return { k: k, r: cache[k] }; }).sort(function (a, b) { return a.r.ts - b.r.ts; })
+      .forEach(function (o) { var p = o.k.split(':'); applyReading(p[0], p[1], o.r, false); });
+  }
+  reapply();
+  syncNow();
+  pressed('daySeg', 'data-day', state.day);
+  renderPlaces();
+  fetchWx();
+  setTab();
+  autoTick();
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+}
+</script>
+</body>
+</html>
