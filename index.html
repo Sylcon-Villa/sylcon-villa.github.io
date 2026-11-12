@@ -46,6 +46,15 @@
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
+.lock { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; overflow-y: auto;
+  background: radial-gradient(80vmax 60vmax at 110% -10%, rgba(86, 224, 255, 0.18), transparent 60%), radial-gradient(60vmax 50vmax at -20% 110%, rgba(255, 178, 77, 0.14), transparent 60%), var(--bg);
+  padding-top: max(24px, env(safe-area-inset-top, 0px)); padding-bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.lock-card { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 16px; padding: 32px 24px; border-radius: 24px;
+  border: 1px solid rgba(86, 224, 255, 0.35); background: linear-gradient(180deg, var(--glass-2), var(--glass)); box-shadow: 0 32px 88px -40px var(--cy); }
+.lock-card h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+body.locked { overflow: hidden; }
+body.locked .top, body.locked .app, body.locked .nav { visibility: hidden; }
 html { -webkit-text-size-adjust: 100%; padding-top: env(safe-area-inset-top, 0px); }
 body {
   margin: 0;
@@ -289,6 +298,20 @@ details.panel > .stack { display: flex; flex-direction: column; gap: 16px; }
   .ring-fg { transition: none; }
 }
 </style>
+
+<div class="lock" id="lock" hidden>
+  <form class="lock-card" id="lockForm" autocomplete="off">
+    <svg width="64" height="64" viewBox="0 0 34 34" aria-hidden="true"><rect x="1" y="1" width="32" height="32" rx="10" fill="rgba(86,224,255,0.10)" stroke="rgba(86,224,255,0.5)"/><path d="M8 23 L13 23 M14 23 L19 23 M20 23 L26 23" stroke-width="2" stroke-linecap="round" fill="none" stroke="#FFD15C"/><path d="M7 22 C 11 8, 23 8, 27 22" fill="none" stroke="#56E0FF" stroke-width="2.6" stroke-linecap="round"/><circle cx="17" cy="11.6" r="2.2" fill="#FFB24D" stroke="#05070F" stroke-width="1"/></svg>
+    <h1>Sylcon Villa Traffic</h1>
+    <p class="fine">Enter the passcode to use the app on this phone. You only need to do this once.</p>
+    <div class="field">
+      <label for="lockPass">Passcode</label>
+      <input id="lockPass" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false">
+    </div>
+    <button type="submit" class="btn" id="lockBtn">Unlock</button>
+    <p class="fine" id="lockMsg" aria-live="polite"></p>
+  </form>
+</div>
 
 </head>
 <body>
@@ -552,6 +575,7 @@ details.panel > .stack { display: flex; flex-direction: column; gap: 16px; }
         <button type="button" class="link" id="gkeyClear">Remove key</button>
       </div>
       <p class="fine" id="keyMsg"></p>
+      <div class="inline"><button type="button" class="link" id="lockNow" hidden>Lock this phone</button></div>
     </article>
 
     <article class="panel">
@@ -1478,7 +1502,7 @@ details.panel > .stack { display: flex; flex-direction: column; gap: 16px; }
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState !== 'visible') { hiddenAt = Date.now(); return; }
     if (hiddenAt && Date.now() - hiddenAt > 30 * 60000) applyUsual();     // back after a while: open on the usual trip for this time
-    fetchWx(); renderAll(); autoTick(); syncNow();
+    fetchWx(); renderAll(); autoTick(); resolveDb(); syncNow();
   });
   var lastMin = nowRef.min;
   setInterval(function () {
@@ -1700,13 +1724,76 @@ details.panel > .stack { display: flex; flex-direction: column; gap: 16px; }
     document.head.appendChild(s);
   });
 
+  /* ================= passcode lock =================
+     The Google key, the database name and the sync code are encrypted with the passcode
+     (PBKDF2-SHA256, AES-GCM). GitHub only ever holds the scrambled version. */
+  var LOCKED = {"v":1,"it":600000,"s":"QqS1tgFsu3/IkKRMidEDtw==","i":"E2gG3SF3zXFKOqg2","c":"rf9jbxhP8lePPF93qlFqSpKgRjlYQ/XNzUBFXORbiXZNgPBmPWIqzb5TfWq3dsjO9txhGQsjWCYcZ7mmv/UFTQ+hP4R+4s9kYLaHv/fiZX4ewnnPf8vbhZxcI7EE5Tw7L1bqqJyB4BjsY5GwkSWbIV+SUKmXGrJA4XRI3tnNUtwBFmSzux//3bU42RdMh08Q"};
+  function b64u8(s) { var b = atob(s), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; }
+  function unlockWith(pass) {
+    var cs = window.crypto && window.crypto.subtle, L = LOCKED;
+    if (!cs || !window.TextEncoder) return Promise.reject(new Error('NOCRYPTO'));
+    return cs.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']).then(function (b) {
+      return cs.deriveKey({ name: 'PBKDF2', salt: b64u8(L.s), iterations: L.it, hash: 'SHA-256' }, b, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+    }).then(function (k) { return cs.decrypt({ name: 'AES-GCM', iv: b64u8(L.i) }, k, b64u8(L.c)); })
+      .then(function (pt) { return JSON.parse(new TextDecoder().decode(pt)); });
+  }
+  /* The database can sit in Singapore or the US; keep the address that answers. */
+  var resolving = false;
+  function resolveDb() {
+    var s = jget(K.sync, null);
+    if (resolving || !s || s.url || !s.db || !s.code) return Promise.resolve();
+    resolving = true;
+    var c = ['https://' + s.db + '.asia-southeast1.firebasedatabase.app', 'https://' + s.db + '.firebaseio.com'], st = [];
+    return Promise.all(c.map(function (u, i) {
+      return fetch(u + '/dt/' + encodeURIComponent(s.code) + '.json').then(function (r) { st[i] = r.status; }, function () { st[i] = 0; });
+    })).then(function () {
+      var pick = -1, i;
+      for (i = 0; i < c.length; i++) if (st[i] >= 200 && st[i] < 300) { pick = i; break; }
+      if (pick < 0) for (i = 0; i < c.length; i++) if (st[i] === 401 || st[i] === 403) { pick = i; break; }
+      if (pick < 0) { syncErr = 'The shared database did not answer yet. The app tries again when you reopen it.'; return; }
+      s.url = c[pick]; lsSet(K.sync, JSON.stringify(s));
+      var u = localUse();
+      if (u.m > 0 && !ls(K.sync + '_seeded')) { var p = {}; p[dayKey()] = u.m; lsSet(K.pend, JSON.stringify(p)); }
+      lsSet(K.sync + '_seeded', '1');
+      if (st[pick] !== 200) syncErr = 'The database refused the request. Publish the rules in Firebase, Realtime Database, Rules.';
+      return syncNow();
+    }).then(function () { resolving = false; renderAll(); }, function () { resolving = false; });
+  }
+  function isLocked() { return !!LOCKED && ls('dt2_unlocked') !== '1'; }
+  function showLock() {
+    $('lock').hidden = false; document.body.classList.add('locked');
+    setTimeout(function () { try { $('lockPass').focus(); } catch (e) {} }, 60);
+  }
+  $('lockForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var p = $('lockPass').value;
+    if (!p) { $('lockMsg').textContent = 'Enter the passcode.'; return; }
+    $('lockBtn').disabled = true; $('lockMsg').textContent = 'Unlocking…';
+    unlockWith(p).then(function (cfg) {
+      lsSet(K.key, cfg.k);
+      lsSet(K.sync, JSON.stringify({ url: null, db: cfg.db, code: cfg.code }));
+      if (cfg.cap) lsSet(K.sbudget, String(cfg.cap));
+      lsDel(K.shared); lsSet('dt2_unlocked', '1');
+      location.reload();
+    }, function (err) {
+      $('lockBtn').disabled = false;
+      $('lockMsg').textContent = err && err.message === 'NOCRYPTO' ? 'This browser cannot unlock the app. Open it in Chrome or Safari, or in the installed app.' : 'That passcode is not right. Try again.';
+      try { $('lockPass').select(); } catch (x) {}
+    });
+  });
+  $('lockNow').addEventListener('click', function () {
+    [K.key, K.sync, K.shared, K.pend, K.sync + '_seeded', 'dt2_unlocked'].forEach(lsDel);
+    location.reload();
+  });
+  $('lockNow').hidden = !LOCKED;
+
   /* ================= start ================= */
   function reapply() {  // saved Google readings keep correcting the estimates after a reload
     Object.keys(cache).map(function (k) { return { k: k, r: cache[k] }; }).sort(function (a, b) { return a.r.ts - b.r.ts; })
       .forEach(function (o) { var p = o.k.split(':'); applyReading(p[0], p[1], o.r, false); });
   }
   reapply();
-  syncNow();
+  if (isLocked()) showLock(); else { resolveDb(); syncNow(); }
   pressed('daySeg', 'data-day', state.day);
   renderPlaces();
   fetchWx();

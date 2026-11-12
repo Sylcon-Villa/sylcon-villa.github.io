@@ -1,6 +1,6 @@
 /* Service worker: works offline after the first visit.
    Bump CACHE when you change any file so installed apps pick up the update. */
-const CACHE = 'dhaka-traffic-v10';
+const CACHE = 'dhaka-traffic-v11';
 const FILES = [
   './',
   'index.html',

@@ -105,6 +105,18 @@ For the live traffic map, also enable **Maps JavaScript API** and add it to the 
 
 Check Google's current pricing page for the free monthly allowance of "Compute Routes Pro" before relying on the 5,000 figure. The requests use traffic-aware routing and fewer than 11 stops, and avoid the features that move a request to the more expensive Enterprise tier (traffic on the route line, tolls, two-wheelers).
 
+## Passcode lock
+
+The Google key, the Firebase database name and the shared-balance sync code are built into `index.html` **encrypted with the app passcode** (PBKDF2-SHA256 with 600,000 rounds, then AES-256-GCM). The repository and the website only ever contain the scrambled block, so reading the source does not reveal the key.
+
+- Anyone opening the site sees only the lock screen. Without the passcode the app shows nothing and makes no Google requests.
+- Enter the passcode once on each phone. The app then fills in the key and turns on the shared balance by itself, finding whether the database is in Singapore or the US.
+- **Setup > Google key > Lock this phone** removes the key and the sync settings from that phone. Unlock again with the passcode.
+- The passcode is not stored anywhere in the repository. Keep it private, and do not reuse it elsewhere.
+- To change the passcode, the key or the database, the encrypted block has to be rebuilt. Ask for a rebuilt `index.html`, then upload it and raise the version in `sw.js`.
+
+The Firebase rules from "One shared balance for both phones" must still be published, or the shared balance shows "The database refused the request".
+
 ## Publish on GitHub Pages
 
 1. Create a repository and upload every file in this folder, including the hidden `.github` folder and `.nojekyll`.
@@ -126,7 +138,7 @@ The Google key and the balance are saved inside each installed app. Enter the ke
 
 ## Updating the app
 
-Replace `index.html`, then raise the version in `sw.js` (`dhaka-traffic-v10` to `dhaka-traffic-v11`) so installed copies refresh. Push to `main`.
+Replace `index.html`, then raise the version in `sw.js` (`dhaka-traffic-v11` to `dhaka-traffic-v12`) so installed copies refresh. Push to `main`.
 
 ## Changing things in the code
 
